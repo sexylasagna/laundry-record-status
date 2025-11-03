@@ -151,7 +151,7 @@ export async function deleteClaimedAndPaidRecords(): Promise<number> {
   
   try {
     // Query all documents with status = 3
-    const q = query(collection(db, 'laundry_records'), where('status', '==', 3));
+    const q = query(collection(db!, 'laundry_records'), where('status', '==', 3));
     const querySnapshot = await getDocs(q);
     
     console.log(`📊 Found ${querySnapshot.size} documents with status = 3 (Claimed & Paid)`);
@@ -163,7 +163,7 @@ export async function deleteClaimedAndPaidRecords(): Promise<number> {
     
     // Delete all documents
     const deletePromises = querySnapshot.docs.map((docSnapshot) => {
-      const docRef = doc(db, 'laundry_records', docSnapshot.id);
+      const docRef = doc(db!, 'laundry_records', docSnapshot.id);
       console.log(`🗑️ Deleting document ${docSnapshot.id} (${docSnapshot.data().customer_name})`);
       return deleteDoc(docRef);
     });
