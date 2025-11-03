@@ -22,9 +22,9 @@ export default function PasswordModal({
   
   const getExpectedPassword = () => {
     if (passwordType === 'override') {
-      return (import.meta.env.VITE_OVERRIDE_PASSWORD as string) || 'override123';
+      return import.meta.env.VITE_OVERRIDE_PASSWORD as string;
     }
-    return (import.meta.env.VITE_ADMIN_PASSWORD as string) || 'kwikadmin2';
+    return import.meta.env.VITE_ADMIN_PASSWORD as string;
   };
   
   const getTitle = () => {
@@ -48,6 +48,12 @@ export default function PasswordModal({
   const expected = getExpectedPassword();
 
   useEffect(() => {
+    if (!expected) {
+      console.error(`Missing ${passwordType === 'override' ? 'VITE_OVERRIDE_PASSWORD' : 'VITE_ADMIN_PASSWORD'} environment variable`);
+    }
+  }, [expected, passwordType]);
+
+  useEffect(() => {
     // Blur any active input elements when modal opens
     const activeElement = document.activeElement as HTMLElement;
     if (activeElement && activeElement.tagName === 'INPUT') {
@@ -62,6 +68,10 @@ export default function PasswordModal({
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!expected) {
+      setError('Password not configured. Please set environment variables.');
+      return;
+    }
     if (password === expected) {
       localStorage.setItem(getStorageKey(), 'true');
       onClose();

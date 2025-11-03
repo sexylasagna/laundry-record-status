@@ -22,10 +22,10 @@ import.meta.env.VITE_OVERRIDE_PASSWORD // For override page access
 
 ### Password Types
 
-- **Admin Password** (`VITE_ADMIN_PASSWORD`): Required to access the `/admin` page
-  - Falls back to `'kwikadmin2'` if not set
-- **Override Password** (`VITE_OVERRIDE_PASSWORD`): Required to access the `/override` page
-  - Falls back to `'override123'` if not set
+    - **Admin Password** (`VITE_ADMIN_PASSWORD`): Required to access the `/admin` page
+      - **Required**: Must be set in environment variables
+    - **Override Password** (`VITE_OVERRIDE_PASSWORD`): Required to access the `/override` page
+      - **Required**: Must be set in environment variables
 
 ## Firebase/Firestore Configuration
 
@@ -123,9 +123,11 @@ VITE_ADMIN_PASSWORD=your_password VITE_OVERRIDE_PASSWORD=your_override_password 
 
 ### Current Implementation
 
-The PasswordModal correctly reads:
-- `VITE_ADMIN_PASSWORD` from environment variables (falls back to `'kwikadmin2'` if not set)
-- `VITE_OVERRIDE_PASSWORD` from environment variables (falls back to `'override123'` if not set)
+The PasswordModal reads passwords directly from environment variables:
+- `VITE_ADMIN_PASSWORD` - **Required** for admin page access
+- `VITE_OVERRIDE_PASSWORD` - **Required** for override page access
+
+**Important:** Both passwords must be set in environment variables. If they are not set, authentication will fail with an error message.
 
 The override button on the admin page will prompt for the override password when clicked, and redirects to `/override` upon successful authentication.
 
