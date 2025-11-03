@@ -176,12 +176,16 @@ body {
 .nav-links a.active, .nav-links a:hover { color: var(--text); background: #f3f4f6; }
 
 .search-page { display: flex; flex-direction: column; align-items: center; gap: 20px; padding-top: 40px; }
-.search-page h1 { margin: 0; font-size: 28px; letter-spacing: 0.2px; }
+.search-page h1 { margin: 0; font-size: 28px; letter-spacing: 0.2px; white-space: nowrap; }
 .heading-with-tooltip { 
   display: flex; 
   align-items: center; 
   gap: 8px; 
-  position: relative; 
+  position: relative;
+  flex-wrap: nowrap;
+  width: 100%;
+  justify-content: center;
+  max-width: 100%;
 }
 .tooltip-trigger {
   background: transparent;
@@ -1284,6 +1288,32 @@ body.modal-open .admin-search input {
   
   .override-subdescription {
     font-size: 13px;
+  }
+  
+  .heading-with-tooltip {
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding: 0 8px;
+  }
+  
+  .search-page h1 {
+    font-size: clamp(18px, 5vw, 28px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+  
+  .tooltip-trigger {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+  }
+  
+  .tooltip-trigger svg {
+    width: 16px;
+    height: 16px;
   }
   
   .admin-controls {
