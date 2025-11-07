@@ -966,7 +966,7 @@ body.modal-open .admin-search input {
 }
 
 .btn-auto-arrange {
-  width: 100%;
+  flex: 1;
   background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
   border: 1px solid #93c5fd;
   color: #000000;
@@ -980,7 +980,6 @@ body.modal-open .admin-search input {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 16px;
 }
 
 .btn-auto-arrange:hover {
@@ -993,6 +992,35 @@ body.modal-open .admin-search input {
 .btn-auto-arrange:active {
   transform: translateY(0);
   box-shadow: 0 2px 4px rgba(147, 197, 253, 0.2), 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.btn-auto-remove {
+  flex: 1;
+  background: #ef4444;
+  border: 1px solid #dc2626;
+  color: #ffffff;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2), 0 1px 2px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-auto-remove:hover {
+  background: #dc2626;
+  border-color: #b91c1c;
+  box-shadow: 0 6px 12px rgba(239, 68, 68, 0.3), 0 2px 4px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.btn-auto-remove:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2), 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 /* Equipment tags on customers */

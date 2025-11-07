@@ -328,6 +328,13 @@ export default function MyDayPage() {
     console.log('Auto-arranged', available.length, 'customers into', requiredSlots, 'slots');
   };
 
+  const handleAutoRemove = () => {
+    // Clear all slots by reinitializing the lineup with empty slots
+    const clearedLineup = initializeLineup(slotCount);
+    setLineup(clearedLineup);
+    console.log('Cleared all slots');
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setSaveMessage(null);
@@ -427,12 +434,20 @@ export default function MyDayPage() {
               </div>
             ))}
           </div>
-          <button 
-            className="btn-auto-arrange" 
-            onClick={handleAutoArrange}
-          >
-            Auto Arrange
-          </button>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+            <button 
+              className="btn-auto-arrange" 
+              onClick={handleAutoArrange}
+            >
+              Auto Arrange
+            </button>
+            <button 
+              className="btn-auto-remove" 
+              onClick={handleAutoRemove}
+            >
+              Auto Remove
+            </button>
+          </div>
         </div>
 
         <div className="my-day-lineup">
