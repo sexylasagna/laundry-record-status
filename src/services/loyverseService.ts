@@ -57,16 +57,32 @@ export async function fetchRecentReceipts(days: number = 2): Promise<LoyverseRec
       headers,
     });
 
+    // Check if response is HTML (means route not found or error page)
+    const contentType = response.headers.get('content-type') || '';
+    const isJson = contentType.includes('application/json');
+    
+    if (!isJson) {
+      const text = await response.text();
+      console.error('Non-JSON response received:', {
+        status: response.status,
+        contentType,
+        url,
+        preview: text.substring(0, 200)
+      });
+      throw new Error(`API route returned non-JSON response. Status: ${response.status}. Check if the API endpoint is correctly deployed.`);
+    }
+
+    // Now we know it's JSON, parse it
+    const data = await response.json();
+
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('Loyverse API error response:', errorData);
+      console.error('Loyverse API error response:', data);
       throw new Error(
         `Loyverse API error: ${response.status} ${response.statusText}. ` +
-        (errorData.errors ? JSON.stringify(errorData.errors) : '')
+        (data.errors ? JSON.stringify(data.errors) : JSON.stringify(data))
       );
     }
 
-    const data = await response.json();
     return data.receipts || [];
   } catch (error) {
     console.error('Error fetching receipts from Loyverse:', error);
@@ -101,19 +117,36 @@ export async function getCustomerById(customerId: string): Promise<LoyverseCusto
       headers,
     });
 
+    // Check if response is HTML (means route not found or error page)
+    const contentType = response.headers.get('content-type') || '';
+    const isJson = contentType.includes('application/json');
+    
+    if (!isJson) {
+      const text = await response.text();
+      console.error('Non-JSON response received:', {
+        status: response.status,
+        contentType,
+        url,
+        preview: text.substring(0, 200)
+      });
+      throw new Error(`API route returned non-JSON response. Status: ${response.status}. Check if the API endpoint is correctly deployed.`);
+    }
+
+    // Now we know it's JSON, parse it
+    const data = await response.json();
+
     if (!response.ok) {
       if (response.status === 404) {
         return null; // Customer not found
       }
-      const errorData = await response.json().catch(() => ({}));
-      console.error('Loyverse API error response:', errorData);
+      console.error('Loyverse API error response:', data);
       throw new Error(
         `Loyverse API error: ${response.status} ${response.statusText}. ` +
-        (errorData.errors ? JSON.stringify(errorData.errors) : '')
+        (data.errors ? JSON.stringify(data.errors) : JSON.stringify(data))
       );
     }
 
-    return await response.json();
+    return data;
   } catch (error) {
     console.error(`Error fetching customer ${customerId} from Loyverse:`, error);
     return null;
