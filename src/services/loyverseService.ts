@@ -24,10 +24,13 @@ interface ReceiptWithCustomer {
 
 // Fetch recent receipts from Loyverse
 export async function fetchRecentReceipts(days: number = 2): Promise<LoyverseReceipt[]> {
+  // Note: Token is now handled server-side via API proxy
+  // For local dev, set VITE_LOYVERSE_ACCESS_TOKEN in .env
+  // For production (Vercel), set VITE_LOYVERSE_ACCESS_TOKEN in Vercel environment variables
   const apiToken = import.meta.env.VITE_LOYVERSE_ACCESS_TOKEN as string | undefined;
   
   if (!apiToken) {
-    throw new Error('Loyverse access token not configured. Please set VITE_LOYVERSE_ACCESS_TOKEN in .env');
+    throw new Error('Loyverse access token not configured. Please set VITE_LOYVERSE_ACCESS_TOKEN in .env (local) or Vercel environment variables (production).');
   }
 
   // Calculate date range (last N days)
@@ -39,17 +42,14 @@ export async function fetchRecentReceipts(days: number = 2): Promise<LoyverseRec
   const endDateStr = endDate.toISOString().split('T')[0];
 
   try {
-    // Use proxy in development to avoid CORS, direct API in production
-    const useProxy = import.meta.env.DEV;
-    const baseUrl = useProxy 
-      ? '/api/loyverse/receipts'
-      : 'https://api.loyverse.com/v1.0/receipts';
-    
+    // Always use proxy endpoint to avoid CORS issues in production
+    // The proxy endpoint will handle the Authorization header server-side
+    const baseUrl = '/api/loyverse/receipts';
     const url = `${baseUrl}?receipt_date_min=${startDateStr}&receipt_date_max=${endDateStr}`;
     
+    // Don't send Authorization header from client - server will add it
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiToken}`, // Always include, proxy will forward it
     };
     
     const response = await fetch(url, {
@@ -76,24 +76,24 @@ export async function fetchRecentReceipts(days: number = 2): Promise<LoyverseRec
 
 // Get customer details by customer_id
 export async function getCustomerById(customerId: string): Promise<LoyverseCustomer | null> {
+  // Note: Token is now handled server-side via API proxy
+  // For local dev, set VITE_LOYVERSE_ACCESS_TOKEN in .env
+  // For production (Vercel), set VITE_LOYVERSE_ACCESS_TOKEN in Vercel environment variables
   const apiToken = import.meta.env.VITE_LOYVERSE_ACCESS_TOKEN as string | undefined;
   
   if (!apiToken) {
-    throw new Error('Loyverse access token not configured');
+    throw new Error('Loyverse access token not configured. Please set VITE_LOYVERSE_ACCESS_TOKEN in .env (local) or Vercel environment variables (production).');
   }
 
   try {
-    // Use proxy in development to avoid CORS, direct API in production
-    const useProxy = import.meta.env.DEV;
-    const baseUrl = useProxy
-      ? `/api/loyverse/customers/${customerId}`
-      : `https://api.loyverse.com/v1.0/customers/${customerId}`;
-    
+    // Always use proxy endpoint to avoid CORS issues in production
+    // The proxy endpoint will handle the Authorization header server-side
+    const baseUrl = `/api/loyverse/customers/${customerId}`;
     const url = baseUrl;
     
+    // Don't send Authorization header from client - server will add it
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiToken}`, // Always include, proxy will forward it
     };
     
     const response = await fetch(url, {

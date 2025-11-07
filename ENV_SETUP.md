@@ -131,6 +131,46 @@ The PasswordModal reads passwords directly from environment variables:
 
 The override button on the admin page will prompt for the override password when clicked, and redirects to `/override` upon successful authentication.
 
+## Loyverse API Configuration
+
+The app can sync with Loyverse receipts to automatically update customer status. This requires a Loyverse access token.
+
+### Getting Your Loyverse Access Token
+
+1. Go to [Loyverse Developer Portal](https://developer.loyverse.com/)
+2. Sign in with your Loyverse account
+3. Create a new application or use an existing one
+4. Copy your **Access Token**
+
+### Environment Variables for Loyverse
+
+**Local Development:**
+Add to your `.env` file:
+```bash
+VITE_LOYVERSE_ACCESS_TOKEN=your_loyverse_access_token_here
+```
+
+**Production (Vercel):**
+1. Go to your Vercel project settings
+2. Navigate to "Environment Variables"
+3. Add: `VITE_LOYVERSE_ACCESS_TOKEN` = `your_loyverse_access_token_here`
+4. Alternatively, you can use `LOYVERSE_ACCESS_TOKEN` (without VITE_ prefix) for server-side only
+5. Redeploy your application
+
+### How It Works
+
+- The app uses **serverless API functions** (`/api/loyverse/*`) to proxy requests to Loyverse API
+- This avoids CORS issues and keeps your access token secure (server-side only)
+- The API functions are located in `/api/loyverse/` directory
+- In production, requests go through Vercel serverless functions instead of directly to Loyverse
+
+### API Functions
+
+- `/api/loyverse/receipts` - Fetches receipts from Loyverse
+- `/api/loyverse/customers/[customerId]` - Fetches customer details by ID
+
+**Note:** The access token is handled server-side in production, so it's never exposed to the client.
+
 ### Other Environment Variables
 
 You can also configure:

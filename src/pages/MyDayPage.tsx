@@ -256,6 +256,78 @@ export default function MyDayPage() {
     setLineup(newLineup);
   };
 
+  // Parse date and time from dateDropped string (format: "2025-10-27 08:25 PM")
+  const parseDate = (dateStr: string): Date => {
+    const parts = dateStr.trim().split(' ');
+    const datePart = parts[0]; // "2025-10-27"
+    const timePart = parts.slice(1).join(' '); // "08:25 PM"
+    
+    if (!timePart || timePart === '-') {
+      // No time, just date
+      return new Date(datePart);
+    }
+    
+    // Parse time (format: "08:25 PM")
+    const [time, period] = timePart.split(' ');
+    const [hours, minutes] = time.split(':').map(Number);
+    let hour24 = hours;
+    if (period === 'PM' && hours !== 12) {
+      hour24 = hours + 12;
+    } else if (period === 'AM' && hours === 12) {
+      hour24 = 0;
+    }
+    
+    const dateTime = new Date(datePart);
+    dateTime.setHours(hour24, minutes || 0, 0, 0);
+    return dateTime;
+  };
+
+  const handleAutoArrange = () => {
+    // Get available customers (those not in lineup)
+    const available = customers.filter(
+      customer => !lineup.some(item => item.customerId === customer.id)
+    );
+    
+    if (available.length === 0) {
+      console.log('No available customers to arrange');
+      return;
+    }
+
+    // Sort by dateDropped (oldest first)
+    available.sort((a, b) => {
+      const dateA = parseDate(a.dateDropped);
+      const dateB = parseDate(b.dateDropped);
+      return dateA.getTime() - dateB.getTime();
+    });
+
+    // Determine how many slots we need (at least as many as available customers)
+    const requiredSlots = Math.max(available.length, slotCount);
+    
+    // Update slot count if we need more slots
+    if (requiredSlots > slotCount) {
+      setSlotCount(requiredSlots);
+    }
+
+    // Create new lineup with the required number of slots
+    const newLineup = initializeLineup(requiredSlots);
+    
+    // Place sorted customers in slots
+    available.forEach((customer, index) => {
+      if (index < requiredSlots) {
+        newLineup[index] = {
+          customerId: customer.id,
+          customerName: customer.customerName,
+          totalWeightKg: customer.totalWeightKg,
+          position: index + 1,
+          equipment: [],
+        };
+      }
+    });
+
+    setLineup(newLineup);
+    console.log('Auto-arranged', available.length, 'customers into', requiredSlots, 'slots');
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setSaveMessage(null);
@@ -355,6 +427,12 @@ export default function MyDayPage() {
               </div>
             ))}
           </div>
+          <button 
+            className="btn-auto-arrange" 
+            onClick={handleAutoArrange}
+          >
+            Auto Arrange
+          </button>
         </div>
 
         <div className="my-day-lineup">

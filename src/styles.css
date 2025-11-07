@@ -965,6 +965,36 @@ body.modal-open .admin-search input {
   cursor: grabbing;
 }
 
+.btn-auto-arrange {
+  width: 100%;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border: 1px solid #93c5fd;
+  color: #000000;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(147, 197, 253, 0.2), 0 1px 2px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.btn-auto-arrange:hover {
+  background: linear-gradient(135deg, #bfdbfe 0%, #93c5fd 100%);
+  border-color: #60a5fa;
+  box-shadow: 0 6px 12px rgba(147, 197, 253, 0.3), 0 2px 4px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.btn-auto-arrange:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(147, 197, 253, 0.2), 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
 /* Equipment tags on customers */
 .lineup-customer-content {
   display: flex;
