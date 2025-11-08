@@ -1,16 +1,17 @@
-import { 
-  collection, 
-  getDocs, 
-  doc, 
+import {
+  collection,
+  getDocs,
+  doc,
   updateDoc,
   deleteDoc,
-  Timestamp,
   query,
   orderBy,
-  where
+  where,
+  setDoc,
+  onSnapshot,
 } from 'firebase/firestore';
 import { db } from './firebaseConfig';
-import { CustomerRecord, LaundryStatus } from '../types';
+import { CustomerRecord, LaundryStatus, ReminderPayload } from '../types';
 
 // Map Firestore document to CustomerRecord
 function mapFirestoreDoc(docId: string, data: any): CustomerRecord {
@@ -186,5 +187,54 @@ export async function deleteClaimedAndPaidRecords(): Promise<number> {
     console.error('❌ Error deleting Claimed & Paid records:', error);
     throw error;
   }
+}
+
+const REMINDER_COLLECTION = 'laundry_reminder_notification';
+const REMINDER_DOC_ID = 'current';
+
+export async function setReminderNotification(payload: ReminderPayload): Promise<void> {
+  if (!db) {
+    throw new Error('Firestore is not initialized. Please configure Firebase environment variables.');
+  }
+  const docRef = doc(db, REMINDER_COLLECTION, REMINDER_DOC_ID);
+  await setDoc(docRef, payload);
+}
+
+export async function clearReminderNotification(): Promise<void> {
+  if (!db) {
+    throw new Error('Firestore is not initialized. Please configure Firebase environment variables.');
+  }
+  const docRef = doc(db, REMINDER_COLLECTION, REMINDER_DOC_ID);
+  await deleteDoc(docRef);
+}
+
+export function subscribeToReminderNotification(
+  onChange: (payload: ReminderPayload | null) => void
+): () => void {
+  if (!db) {
+    console.warn('Firestore is not initialized; reminder subscription disabled.');
+    onChange(null);
+    return () => {};
+  }
+  const docRef = doc(db, REMINDER_COLLECTION, REMINDER_DOC_ID);
+  return onSnapshot(
+    docRef,
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        onChange(null);
+        return;
+      }
+      const data = snapshot.data() as ReminderPayload;
+      const items = Array.isArray(data.items) ? data.items : [];
+      onChange({
+        createdAt: data.createdAt,
+        items,
+      });
+    },
+    (error) => {
+      console.error('❌ Error listening to reminder notification:', error);
+      onChange(null);
+    }
+  );
 }
 

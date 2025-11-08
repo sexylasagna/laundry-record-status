@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { deleteClaimedAndPaidRecords } from '../services/firestoreService';
+import { deleteClaimedAndPaidRecords, setReminderNotification, clearReminderNotification } from '../services/firestoreService';
 import { fetchCustomers } from '../services/sheetsService';
 import { CustomerRecord, ReminderItem } from '../types';
-
-const REMINDER_STORAGE_KEY = 'admin-reminder-notification';
 
 function getDaysSince(dateString: string | undefined): number {
   if (!dateString) return 0;
@@ -86,12 +84,10 @@ export default function OverridePage() {
           createdAt: new Date().toISOString(),
           items: reminderItems,
         };
-        window.localStorage.setItem(REMINDER_STORAGE_KEY, JSON.stringify(payload));
-        window.dispatchEvent(new Event('admin-reminder-updated'));
+        await setReminderNotification(payload);
         setReminderMessage(`✅ Sent reminder for ${reminderItems.length} customer${reminderItems.length === 1 ? '' : 's'}.`);
       } else {
-        window.localStorage.removeItem(REMINDER_STORAGE_KEY);
-        window.dispatchEvent(new Event('admin-reminder-updated'));
+        await clearReminderNotification();
         setReminderMessage('ℹ️ No overdue customers found for reminder.');
       }
     } catch (error) {

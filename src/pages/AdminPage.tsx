@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CustomerRecord, ReminderEnrichedItem, ReminderItem, ReminderType } from '../types';
 import { fetchCustomers, updateCustomerStatus, updateCustomerName, updateTotalWeight } from '../services/sheetsService';
+import { subscribeToReminderNotification, clearReminderNotification } from '../services/firestoreService';
 import { fetchReceiptsWithCustomers } from '../services/loyverseService';
 import StatusBadge from '../components/StatusBadge';
 import AdminSearchBar from '../components/AdminSearchBar';
@@ -27,8 +28,6 @@ function parseDateAndTime(dateString: string): { date: string; time: string } {
 }
 
 type SortOrder = 'asc' | 'desc' | null;
-
-const REMINDER_STORAGE_KEY = 'admin-reminder-notification';
 
 function getDaysSince(dateString: string | undefined): number {
   if (!dateString) return 0;
@@ -76,13 +75,15 @@ export default function AdminPage() {
   const [reminderItems, setReminderItems] = useState<ReminderEnrichedItem[]>([]);
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [reminderCreatedAt, setReminderCreatedAt] = useState<string | null>(null);
+  const [reminderRawItems, setReminderRawItems] = useState<ReminderItem[]>([]);
   const closeReminderModal = useCallback(() => {
     setShowReminderModal(false);
   }, []);
 
-  const dismissReminder = useCallback(() => {
+  const dismissReminder = useCallback(async () => {
     setShowReminderModal(false);
     setReminderItems([]);
+    setReminderRawItems([]);
     setReminderCreatedAt(null);
     setExpandedRows((prev) => {
       if (reminderItems.length === 0) {
@@ -92,9 +93,10 @@ export default function AdminPage() {
       reminderItems.forEach((item) => next.delete(item.record.id));
       return next;
     });
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(REMINDER_STORAGE_KEY);
-      window.dispatchEvent(new Event('admin-reminder-updated'));
+    try {
+      await clearReminderNotification();
+    } catch (error) {
+      console.error('Failed to clear reminder notification:', error);
     }
   }, [reminderItems]);
 
@@ -117,96 +119,64 @@ export default function AdminPage() {
     });
   }, [rows]);
 
-  const loadReminderFromStorage = useCallback(
-    (records: CustomerRecord[] = rows) => {
-      if (typeof window === 'undefined') {
-        return;
-      }
-      const raw = window.localStorage.getItem(REMINDER_STORAGE_KEY);
-      if (!raw) {
-        setReminderItems([]);
+  useEffect(() => {
+    const unsubscribe = subscribeToReminderNotification((payload) => {
+      if (payload && Array.isArray(payload.items) && payload.items.length > 0) {
+        setReminderRawItems(payload.items);
+        setReminderCreatedAt(payload.createdAt || null);
+      } else {
+        setReminderRawItems([]);
         setReminderCreatedAt(null);
-        setShowReminderModal(false);
-        return;
       }
-      try {
-        const parsed = JSON.parse(raw) as { createdAt?: string; items?: ReminderItem[] };
-        const storedItems = Array.isArray(parsed.items) ? parsed.items : [];
-        const enriched = storedItems
-          .map<ReminderEnrichedItem | null>((item) => {
-            const record = records.find((r) => r.id === item.id);
-            if (!record) {
-              return null;
-            }
-            if (!recordStillQualifies(record, item.type)) {
-              return null;
-            }
-            return {
-              ...item,
-              record,
-              daysSinceDropped: getDaysSince(record.dateDropped),
-              daysSinceDone: record.dateDone ? getDaysSince(record.dateDone) : undefined,
-            };
-          })
-          .filter((item): item is ReminderEnrichedItem => item !== null);
-
-        if (enriched.length === 0) {
-          window.localStorage.removeItem(REMINDER_STORAGE_KEY);
-          setReminderItems([]);
-          setReminderCreatedAt(null);
-          setShowReminderModal(false);
-          return;
-        }
-
-        const updatedPayload = {
-          createdAt: parsed.createdAt || new Date().toISOString(),
-          items: enriched.map(({ id, type }) => ({ id, type })),
-        };
-        window.localStorage.setItem(REMINDER_STORAGE_KEY, JSON.stringify(updatedPayload));
-
-        setReminderItems(enriched);
-        setReminderCreatedAt(updatedPayload.createdAt);
-        setShowReminderModal(true);
-      } catch (error) {
-        console.error('Failed to load reminder notification:', error);
-        window.localStorage.removeItem(REMINDER_STORAGE_KEY);
-        setReminderItems([]);
-        setReminderCreatedAt(null);
-        setShowReminderModal(false);
-      }
-    },
-    [rows]
-  );
+    });
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
-    if (!loading) {
-      loadReminderFromStorage(rows);
-    }
-  }, [rows, loading, loadReminderFromStorage]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (loading) {
       return;
     }
 
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key === REMINDER_STORAGE_KEY) {
-        loadReminderFromStorage();
-      }
-    };
+    if (reminderRawItems.length === 0) {
+      setReminderItems([]);
+      setShowReminderModal(false);
+      return;
+    }
 
-    const handleCustomEvent = () => {
-      loadReminderFromStorage();
-    };
+    const enriched = reminderRawItems
+      .map<ReminderEnrichedItem | null>((item) => {
+        const record = rows.find((r) => r.id === item.id);
+        if (!record) {
+          return null;
+        }
+        if (!recordStillQualifies(record, item.type)) {
+          return null;
+        }
+        return {
+          ...item,
+          record,
+          daysSinceDropped: getDaysSince(record.dateDropped),
+          daysSinceDone: record.dateDone ? getDaysSince(record.dateDone) : undefined,
+        };
+      })
+      .filter((item): item is ReminderEnrichedItem => item !== null);
 
-    window.addEventListener('storage', handleStorage);
-    window.addEventListener('admin-reminder-updated', handleCustomEvent as EventListener);
+    if (enriched.length === 0) {
+      setReminderItems([]);
+      setShowReminderModal(false);
+      void (async () => {
+        try {
+          await clearReminderNotification();
+        } catch (error) {
+          console.error('Failed to clear stale reminder notification:', error);
+        }
+      })();
+      return;
+    }
 
-    return () => {
-      window.removeEventListener('storage', handleStorage);
-      window.removeEventListener('admin-reminder-updated', handleCustomEvent as EventListener);
-    };
-  }, [loadReminderFromStorage]);
+    setReminderItems(enriched);
+    setShowReminderModal(true);
+  }, [reminderRawItems, rows, loading]);
 
   // Filter records: show "In progress" (1), "Done" (2), or "Claimed & Paid" (3) with today's date
   const filteredRows = useMemo(() => {
@@ -290,8 +260,7 @@ export default function AdminPage() {
     const today = getTodayDate();
     const updated = await updateCustomerStatus(id, 2, undefined, today);
     setRows(updated);
-    loadReminderFromStorage(updated);
-  }, [loadReminderFromStorage]);
+  }, []);
 
   const markClaimed = useCallback(async (id: string) => {
     const today = getTodayDate();
@@ -299,8 +268,7 @@ export default function AdminPage() {
     const dateDone = recordToUpdate?.dateDone || today;
     const updated = await updateCustomerStatus(id, 3, today, dateDone);
     setRows(updated);
-    loadReminderFromStorage(updated);
-  }, [rows, loadReminderFromStorage]);
+  }, [rows]);
 
   const startEdit = (id: string, field: 'name' | 'weight', currentValue: string | number) => {
     setEditingId(id);
@@ -414,7 +382,6 @@ export default function AdminPage() {
       // Refresh data from Firestore
       const refreshedData = await fetchCustomers();
       setRows(refreshedData);
-      loadReminderFromStorage(refreshedData);
 
       if (matchedCount === 0) {
         setSyncMessage(`No matches found. Checked ${receipts.length} receipts against ${doneRecords.length} done records.`);
