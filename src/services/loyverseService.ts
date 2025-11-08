@@ -35,8 +35,10 @@ export async function fetchRecentReceipts(days: number = 2): Promise<LoyverseRec
 
   // Calculate date range (last N days)
   const endDate = new Date();
+  endDate.setHours(23, 59, 59, 999);
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
+  startDate.setHours(0, 0, 0, 0);
   
   const startDateStr = startDate.toISOString().split('T')[0];
   const endDateStr = endDate.toISOString().split('T')[0];
@@ -177,6 +179,11 @@ function getCustomerName(customer: LoyverseCustomer): string {
 export async function fetchReceiptsWithCustomers(days: number = 2): Promise<ReceiptWithCustomer[]> {
   const receipts = await fetchRecentReceipts(days);
   const receiptsWithCustomers: ReceiptWithCustomer[] = [];
+  const earliestAllowed = new Date();
+  earliestAllowed.setDate(earliestAllowed.getDate() - days);
+  earliestAllowed.setHours(0, 0, 0, 0);
+  const latestAllowed = new Date();
+  latestAllowed.setHours(23, 59, 59, 999);
 
   for (const receipt of receipts) {
     if (!receipt.customer_id) {
@@ -193,8 +200,17 @@ export async function fetchReceiptsWithCustomers(days: number = 2): Promise<Rece
       continue; // Skip if no customer name
     }
 
+    const receiptDateObj = new Date(receipt.receipt_date);
+    if (Number.isNaN(receiptDateObj.getTime())) {
+      continue;
+    }
+
+    if (receiptDateObj < earliestAllowed || receiptDateObj > latestAllowed) {
+      continue;
+    }
+
     // Extract date from receipt_date (format: "2025-11-02T16:47:32+08:00" or "2025-11-02")
-    const receiptDate = receipt.receipt_date.split('T')[0]; // Get YYYY-MM-DD
+    const receiptDate = receiptDateObj.toISOString().split('T')[0]; // Get YYYY-MM-DD
 
     receiptsWithCustomers.push({
       receiptDate,
