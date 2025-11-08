@@ -34,6 +34,8 @@ function mapFirestoreDoc(docId: string, data: any): CustomerRecord {
     datePaid = date.toISOString().split('T')[0]; // YYYY-MM-DD format
   }
   
+  const dateDone: string | undefined = data.date_done || undefined;
+
   return {
     id: docId,
     dateDropped: data.date || '', // "2025-11-02 04:47 PM"
@@ -41,6 +43,7 @@ function mapFirestoreDoc(docId: string, data: any): CustomerRecord {
     totalWeightKg: Number(data.total_kg) || 0,
     status: (data.status as LaundryStatus) || 1,
     datePaid: datePaid,
+    dateDone,
   };
 }
 
@@ -75,7 +78,8 @@ export async function fetchCustomersFromFirestore(): Promise<CustomerRecord[]> {
 export async function updateCustomerStatusInFirestore(
   docId: string,
   status: LaundryStatus,
-  datePaid?: string
+  datePaid?: string,
+  dateDone?: string
 ): Promise<void> {
   if (!db) {
     throw new Error('Firestore is not initialized. Please configure Firebase environment variables.');
@@ -83,11 +87,17 @@ export async function updateCustomerStatusInFirestore(
   
   try {
     const docRef = doc(db, 'laundry_records', docId);
-    const updateData: any = { status };
+    const updateData: Record<string, any> = { status };
     
     if (status === 3 && datePaid) {
       updateData.date_paid = datePaid;
+      if (dateDone) {
+        updateData.date_done = dateDone;
+      }
       console.log(`📅 Adding date_paid: ${datePaid} to document ${docId}`);
+    } else if (status === 2 && dateDone) {
+      updateData.date_done = dateDone;
+      console.log(`📅 Adding date_done: ${dateDone} to document ${docId}`);
     }
     
     console.log(`📝 Updating document ${docId} with data:`, updateData);

@@ -1387,6 +1387,18 @@ body.modal-open .admin-search input {
   line-height: 1.6;
 }
 
+.control-list {
+  margin: 0 0 12px 16px;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+  padding-left: 16px;
+}
+
+.control-list li {
+  margin-bottom: 6px;
+}
+
 .control-warning {
   color: #dc2626 !important;
   font-weight: 600 !important;
@@ -1397,6 +1409,43 @@ body.modal-open .admin-search input {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.btn-control-primary {
+  background: linear-gradient(135deg, #bae6fd 0%, #7dd3fc 100%);
+  border: 1px solid #38bdf8;
+  color: #0c4a6e;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(125, 211, 252, 0.25), 0 1px 2px rgba(0, 0, 0, 0.1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+}
+
+.btn-control-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%);
+  border-color: #0ea5e9;
+  box-shadow: 0 6px 12px rgba(125, 211, 252, 0.35), 0 2px 4px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.btn-control-primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(125, 211, 252, 0.25), 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.btn-control-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .btn-control-danger {
@@ -1458,6 +1507,140 @@ body.modal-open .admin-search input {
   background: rgba(59, 130, 246, 0.12);
   color: #2563eb;
   border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.reminder-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 11000;
+}
+
+.reminder-modal {
+  width: min(520px, 92%);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+
+.reminder-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.reminder-modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.reminder-close {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  transition: all 0.2s ease;
+}
+
+.reminder-close:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.reminder-meta {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.reminder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.reminder-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--surface);
+}
+
+.reminder-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reminder-item-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.reminder-item-reason {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.reminder-item-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.reminder-item-meta .status-badge {
+  font-size: 12px;
+  padding: 2px 8px;
+}
+
+.reminder-item-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.reminder-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+:root.dark-mode .reminder-modal {
+  background: var(--panel);
+  border-color: var(--border);
+}
+
+:root.dark-mode .reminder-item {
+  background: rgba(30, 41, 59, 0.9);
 }
 
 .spinner-small {
@@ -1748,12 +1931,12 @@ body.modal-open .admin-search input {
   }
 
   .tr.row-claimed.row-collapsed .customer-name-display {
-    justify-content: flex-start;
+    justify-content: flex-end;
     gap: 8px;
   }
 
   .tr.row-claimed.row-collapsed .customer-name-display span {
-    text-align: left;
+    text-align: right;
   }
 
   .tr.row-claimed.row-collapsed .customer-name-display button {
@@ -1829,6 +2012,21 @@ body.modal-open .admin-search input {
   .btn { width: 100%; }
   .search-page h1 { font-size: 24px; }
   .admin-page h2 { font-size: 20px; }
+}
+
+@media (max-width: 720px) {
+  .reminder-modal {
+    width: 100%;
+    padding: 18px;
+  }
+
+  .reminder-item {
+    flex-direction: column;
+  }
+
+  .reminder-item-actions {
+    flex-direction: row;
+  }
 }
 
 

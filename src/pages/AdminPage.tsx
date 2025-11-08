@@ -1,6 +1,6 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CustomerRecord } from '../types';
+import { CustomerRecord, ReminderEnrichedItem, ReminderItem, ReminderType } from '../types';
 import { fetchCustomers, updateCustomerStatus, updateCustomerName, updateTotalWeight } from '../services/sheetsService';
 import { fetchReceiptsWithCustomers } from '../services/loyverseService';
 import StatusBadge from '../components/StatusBadge';
@@ -28,6 +28,38 @@ function parseDateAndTime(dateString: string): { date: string; time: string } {
 
 type SortOrder = 'asc' | 'desc' | null;
 
+const REMINDER_STORAGE_KEY = 'admin-reminder-notification';
+
+function getDaysSince(dateString: string | undefined): number {
+  if (!dateString) return 0;
+  const [datePart] = dateString.trim().split(' ');
+  const parsed = new Date(datePart);
+  if (Number.isNaN(parsed.getTime())) {
+    return 0;
+  }
+  const now = new Date();
+  const diff = now.getTime() - parsed.getTime();
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
+}
+
+function recordStillQualifies(record: CustomerRecord, type: ReminderType): boolean {
+  const daysSinceDropped = getDaysSince(record.dateDropped);
+  if (type === 'in-progress') {
+    return record.status === 1 && daysSinceDropped >= 2;
+  }
+  if (type === 'done') {
+    if (record.status !== 2) {
+      return false;
+    }
+    if (record.dateDone) {
+      const daysSinceDone = getDaysSince(record.dateDone);
+      return daysSinceDone > 3;
+    }
+    return daysSinceDropped > 3;
+  }
+  return false;
+}
+
 export default function AdminPage() {
   const navigate = useNavigate();
   const [rows, setRows] = useState<CustomerRecord[]>([]);
@@ -41,6 +73,30 @@ export default function AdminPage() {
   const [editingField, setEditingField] = useState<'name' | 'weight' | null>(null);
   const [showOverrideModal, setShowOverrideModal] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(() => new Set());
+  const [reminderItems, setReminderItems] = useState<ReminderEnrichedItem[]>([]);
+  const [showReminderModal, setShowReminderModal] = useState(false);
+  const [reminderCreatedAt, setReminderCreatedAt] = useState<string | null>(null);
+  const closeReminderModal = useCallback(() => {
+    setShowReminderModal(false);
+  }, []);
+
+  const dismissReminder = useCallback(() => {
+    setShowReminderModal(false);
+    setReminderItems([]);
+    setReminderCreatedAt(null);
+    setExpandedRows((prev) => {
+      if (reminderItems.length === 0) {
+        return prev;
+      }
+      const next = new Set(prev);
+      reminderItems.forEach((item) => next.delete(item.record.id));
+      return next;
+    });
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(REMINDER_STORAGE_KEY);
+      window.dispatchEvent(new Event('admin-reminder-updated'));
+    }
+  }, [reminderItems]);
 
   useEffect(() => {
     fetchCustomers().then((data) => {
@@ -60,6 +116,97 @@ export default function AdminPage() {
       return next.size === prev.size ? prev : next;
     });
   }, [rows]);
+
+  const loadReminderFromStorage = useCallback(
+    (records: CustomerRecord[] = rows) => {
+      if (typeof window === 'undefined') {
+        return;
+      }
+      const raw = window.localStorage.getItem(REMINDER_STORAGE_KEY);
+      if (!raw) {
+        setReminderItems([]);
+        setReminderCreatedAt(null);
+        setShowReminderModal(false);
+        return;
+      }
+      try {
+        const parsed = JSON.parse(raw) as { createdAt?: string; items?: ReminderItem[] };
+        const storedItems = Array.isArray(parsed.items) ? parsed.items : [];
+        const enriched = storedItems
+          .map<ReminderEnrichedItem | null>((item) => {
+            const record = records.find((r) => r.id === item.id);
+            if (!record) {
+              return null;
+            }
+            if (!recordStillQualifies(record, item.type)) {
+              return null;
+            }
+            return {
+              ...item,
+              record,
+              daysSinceDropped: getDaysSince(record.dateDropped),
+              daysSinceDone: record.dateDone ? getDaysSince(record.dateDone) : undefined,
+            };
+          })
+          .filter((item): item is ReminderEnrichedItem => item !== null);
+
+        if (enriched.length === 0) {
+          window.localStorage.removeItem(REMINDER_STORAGE_KEY);
+          setReminderItems([]);
+          setReminderCreatedAt(null);
+          setShowReminderModal(false);
+          return;
+        }
+
+        const updatedPayload = {
+          createdAt: parsed.createdAt || new Date().toISOString(),
+          items: enriched.map(({ id, type }) => ({ id, type })),
+        };
+        window.localStorage.setItem(REMINDER_STORAGE_KEY, JSON.stringify(updatedPayload));
+
+        setReminderItems(enriched);
+        setReminderCreatedAt(updatedPayload.createdAt);
+        setShowReminderModal(true);
+      } catch (error) {
+        console.error('Failed to load reminder notification:', error);
+        window.localStorage.removeItem(REMINDER_STORAGE_KEY);
+        setReminderItems([]);
+        setReminderCreatedAt(null);
+        setShowReminderModal(false);
+      }
+    },
+    [rows]
+  );
+
+  useEffect(() => {
+    if (!loading) {
+      loadReminderFromStorage(rows);
+    }
+  }, [rows, loading, loadReminderFromStorage]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === REMINDER_STORAGE_KEY) {
+        loadReminderFromStorage();
+      }
+    };
+
+    const handleCustomEvent = () => {
+      loadReminderFromStorage();
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('admin-reminder-updated', handleCustomEvent as EventListener);
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('admin-reminder-updated', handleCustomEvent as EventListener);
+    };
+  }, [loadReminderFromStorage]);
 
   // Filter records: show "In progress" (1), "Done" (2), or "Claimed & Paid" (3) with today's date
   const filteredRows = useMemo(() => {
@@ -139,16 +286,21 @@ export default function AdminPage() {
     }
   };
 
-  const markDone = async (id: string) => {
-    const updated = await updateCustomerStatus(id, 2); // Done
-    setRows(updated);
-  };
-
-  const markClaimed = async (id: string) => {
+  const markDone = useCallback(async (id: string) => {
     const today = getTodayDate();
-    const updated = await updateCustomerStatus(id, 3, today); // Claimed & Paid
+    const updated = await updateCustomerStatus(id, 2, undefined, today);
     setRows(updated);
-  };
+    loadReminderFromStorage(updated);
+  }, [loadReminderFromStorage]);
+
+  const markClaimed = useCallback(async (id: string) => {
+    const today = getTodayDate();
+    const recordToUpdate = rows.find((r) => r.id === id);
+    const dateDone = recordToUpdate?.dateDone || today;
+    const updated = await updateCustomerStatus(id, 3, today, dateDone);
+    setRows(updated);
+    loadReminderFromStorage(updated);
+  }, [rows, loadReminderFromStorage]);
 
   const startEdit = (id: string, field: 'name' | 'weight', currentValue: string | number) => {
     setEditingId(id);
@@ -247,7 +399,8 @@ export default function AdminPage() {
           if (matchingRecord.status !== 3) {
             console.log(`✅ Matched: ${matchingRecord.customerName} on ${receipt.receiptDate}`);
             // Update to status = 3 (Claimed & Paid) with receipt date
-            await updateCustomerStatus(matchingRecord.id, 3, receipt.receiptDate);
+            const recordDateDone = matchingRecord.dateDone || extractDateOnly(matchingRecord.dateDropped);
+            await updateCustomerStatus(matchingRecord.id, 3, receipt.receiptDate, recordDateDone);
             updatedCount++;
             updatedRecords.push({
               id: matchingRecord.id,
@@ -261,6 +414,7 @@ export default function AdminPage() {
       // Refresh data from Firestore
       const refreshedData = await fetchCustomers();
       setRows(refreshedData);
+      loadReminderFromStorage(refreshedData);
 
       if (matchedCount === 0) {
         setSyncMessage(`No matches found. Checked ${receipts.length} receipts against ${doneRecords.length} done records.`);
@@ -338,6 +492,82 @@ export default function AdminPage() {
 
   return (
     <div className="admin-page">
+      {showReminderModal && reminderItems.length > 0 && (
+        <div
+          className="reminder-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reminder-title"
+          onClick={closeReminderModal}
+        >
+          <div className="reminder-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="reminder-modal-header">
+              <h3 id="reminder-title">Reminding to update customers below:</h3>
+              <button
+                className="reminder-close"
+                onClick={closeReminderModal}
+                aria-label="Close reminder"
+              >
+                ×
+              </button>
+            </div>
+            {reminderCreatedAt && (
+              <div className="reminder-meta">
+                Generated {new Date(reminderCreatedAt).toLocaleString()}
+              </div>
+            )}
+            <div className="reminder-list">
+              {reminderItems.map((item) => {
+                const record = item.record;
+                const isInProgress = item.type === 'in-progress';
+                const daysForMessage = isInProgress
+                  ? item.daysSinceDropped
+                  : item.daysSinceDone ?? item.daysSinceDropped;
+                const reason = isInProgress
+                  ? `In progress for ${daysForMessage} day${daysForMessage === 1 ? '' : 's'}`
+                  : `Done for ${daysForMessage} day${daysForMessage === 1 ? '' : 's'} but not claimed`;
+
+                return (
+                  <div className="reminder-item" key={item.id}>
+                    <div className="reminder-item-info">
+                      <span className="reminder-item-name">{record.customerName}</span>
+                      <span className="reminder-item-reason">{reason}</span>
+                      <div className="reminder-item-meta">
+                        <StatusBadge status={record.status} />
+                        <span>Dropped: {record.dateDropped.split(' ')[0]}</span>
+                      </div>
+                    </div>
+                    <div className="reminder-item-actions">
+                      <button
+                        className="btn btn-done"
+                        onClick={() => markDone(record.id)}
+                        disabled={record.status !== 1}
+                      >
+                        Done
+                      </button>
+                      <button
+                        className="btn btn-claimed"
+                        onClick={() => markClaimed(record.id)}
+                        disabled={record.status === 3}
+                      >
+                        Claimed & Paid
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="reminder-footer">
+              <button className="btn ghost" onClick={closeReminderModal}>
+                Close
+              </button>
+              <button className="btn btn-claimed" onClick={dismissReminder}>
+                Dismiss reminder
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <h2>Kwiksilver Laundry Record Status</h2>
       <div className="header-buttons">
         <button 

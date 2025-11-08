@@ -146,7 +146,8 @@ export async function fetchCustomers(): Promise<CustomerRecord[]> {
 export async function updateCustomerStatus(
   id: string,
   status: LaundryStatus,
-  datePaid?: string
+  datePaid?: string,
+  dateDone?: string
 ): Promise<CustomerRecord[]> {
   // Try Firestore first if configured
   const useFirestore = import.meta.env.VITE_USE_FIRESTORE === 'true' || 
@@ -155,7 +156,7 @@ export async function updateCustomerStatus(
   if (useFirestore) {
     try {
       console.log(`🔄 Updating Firestore document ${id} with status ${status}...`);
-      await updateCustomerStatusInFirestore(id, status, datePaid);
+      await updateCustomerStatusInFirestore(id, status, datePaid, dateDone);
       console.log(`✅ Successfully updated Firestore document ${id}`);
       // Refresh data from Firestore after update
       const records = await fetchCustomersFromFirestore();
@@ -176,6 +177,11 @@ export async function updateCustomerStatus(
         const update: Partial<CustomerRecord> = { status };
         if (status === 3 && datePaid) { // Claimed & Paid
           update.datePaid = datePaid;
+          if (dateDone) {
+            update.dateDone = dateDone;
+          }
+        } else if (status === 2 && dateDone) {
+          update.dateDone = dateDone;
         }
         return { ...r, ...update };
       }
@@ -191,7 +197,7 @@ export async function updateCustomerStatus(
       await fetch(writeEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status, datePaid }),
+        body: JSON.stringify({ id, status, datePaid, dateDone }),
       });
     } catch {
       // Ignore write errors; local persistence still applied

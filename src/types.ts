@@ -7,6 +7,7 @@ export interface CustomerRecord {
   totalWeightKg: number;
   status: LaundryStatus;
   datePaid?: string; // ISO date when claimed & paid
+  dateDone?: string; // ISO date when marked done
 }
 
 export function getStatusText(status: LaundryStatus): string {
@@ -14,6 +15,24 @@ export function getStatusText(status: LaundryStatus): string {
   if (status === 2) return 'Done';
   if (status === 3) return 'Claimed & Paid';
   return 'Unknown';
+}
+
+export type ReminderType = 'in-progress' | 'done';
+
+export interface ReminderItem {
+  id: string;
+  type: ReminderType;
+}
+
+export interface ReminderPayload {
+  createdAt: string;
+  items: ReminderItem[];
+}
+
+export interface ReminderEnrichedItem extends ReminderItem {
+  record: CustomerRecord;
+  daysSinceDropped: number;
+  daysSinceDone?: number;
 }
 
 
