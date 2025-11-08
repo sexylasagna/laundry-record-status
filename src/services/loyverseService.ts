@@ -51,6 +51,11 @@ export async function fetchRecentReceipts(days: number = 2): Promise<LoyverseRec
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
+
+    if (import.meta.env.DEV) {
+      // In local development we rely on Vite proxy, so we must forward the token
+      headers['Authorization'] = `Bearer ${apiToken}`;
+    }
     
     const response = await fetch(url, {
       method: 'GET',
@@ -111,6 +116,10 @@ export async function getCustomerById(customerId: string): Promise<LoyverseCusto
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
+
+    if (import.meta.env.DEV) {
+      headers['Authorization'] = `Bearer ${apiToken}`;
+    }
     
     const response = await fetch(url, {
       method: 'GET',

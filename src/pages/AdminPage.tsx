@@ -40,6 +40,7 @@ export default function AdminPage() {
   const [editValue, setEditValue] = useState<string>('');
   const [editingField, setEditingField] = useState<'name' | 'weight' | null>(null);
   const [showOverrideModal, setShowOverrideModal] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     fetchCustomers().then((data) => {
@@ -47,6 +48,18 @@ export default function AdminPage() {
       setLoading(false);
     });
   }, []);
+
+  useEffect(() => {
+    setExpandedRows((prev) => {
+      const next = new Set<string>();
+      rows.forEach((row) => {
+        if (row.status === 3 && prev.has(row.id)) {
+          next.add(row.id);
+        }
+      });
+      return next.size === prev.size ? prev : next;
+    });
+  }, [rows]);
 
   // Filter records: show "In progress" (1), "Done" (2), or "Claimed & Paid" (3) with today's date
   const filteredRows = useMemo(() => {
@@ -211,6 +224,7 @@ export default function AdminPage() {
 
       let matchedCount = 0;
       let updatedCount = 0;
+      const updatedRecords: Array<{ id: string; customerName: string; receiptDate: string }> = [];
 
       // Match receipts with Firestore records
       for (const receipt of receipts) {
@@ -235,6 +249,11 @@ export default function AdminPage() {
             // Update to status = 3 (Claimed & Paid) with receipt date
             await updateCustomerStatus(matchingRecord.id, 3, receipt.receiptDate);
             updatedCount++;
+            updatedRecords.push({
+              id: matchingRecord.id,
+              customerName: matchingRecord.customerName,
+              receiptDate: receipt.receiptDate,
+            });
           }
         }
       }
@@ -250,12 +269,71 @@ export default function AdminPage() {
       }
 
       console.log(`✅ Sync complete: ${updatedCount} records updated`);
+      if (updatedRecords.length > 0) {
+        console.log('📋 Updated records details:', updatedRecords);
+      } else {
+        console.log('ℹ️ No records were updated during this sync.');
+      }
     } catch (error) {
       console.error('❌ Sync error:', error);
       setSyncMessage(`Error syncing: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setSyncing(false);
     }
+  };
+
+  const toggleRowExpanded = (recordId: string) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(recordId)) {
+        next.delete(recordId);
+      } else {
+        next.add(recordId);
+      }
+      return next;
+    });
+  };
+
+  const handleRowClick = (
+    event: React.MouseEvent<HTMLDivElement>,
+    recordId: string,
+    isClaimed: boolean
+  ) => {
+    if (!isClaimed) {
+      return;
+    }
+    if (typeof window !== 'undefined') {
+      const isMobile = window.matchMedia('(max-width: 720px)').matches;
+      if (!isMobile) {
+        return;
+      }
+    }
+    const target = event.target as HTMLElement;
+    if (target.closest('button') || target.closest('input') || target.closest('a')) {
+      return;
+    }
+    toggleRowExpanded(recordId);
+  };
+
+  const handleRowKeyDown = (
+    event: React.KeyboardEvent<HTMLDivElement>,
+    recordId: string,
+    isClaimed: boolean
+  ) => {
+    if (!isClaimed) {
+      return;
+    }
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+    if (typeof window !== 'undefined') {
+      const isMobile = window.matchMedia('(max-width: 720px)').matches;
+      if (!isMobile) {
+        return;
+      }
+    }
+    event.preventDefault();
+    toggleRowExpanded(recordId);
   };
 
   return (
@@ -350,8 +428,23 @@ export default function AdminPage() {
                 const claimed = r.status === 3; // Claimed & Paid
                 const done = r.status === 2; // Done
                 const { date, time } = parseDateAndTime(r.dateDropped);
+                const isExpanded = expandedRows.has(r.id);
+                const isCollapsed = claimed && !isExpanded;
+                const rowClasses = ['tr'];
+                if (claimed) {
+                  rowClasses.push('row-claimed', isCollapsed ? 'row-collapsed' : 'row-expanded');
+                }
                 return (
-                  <div className="tr" key={r.id}>
+                  <div
+                    className={rowClasses.join(' ')}
+                    key={r.id}
+                    onClick={(event) => handleRowClick(event, r.id, claimed)}
+                    onKeyDown={(event) => handleRowKeyDown(event, r.id, claimed)}
+                    role={claimed ? 'button' : undefined}
+                    tabIndex={claimed ? 0 : undefined}
+                    aria-expanded={claimed ? !isCollapsed : undefined}
+                    aria-label={claimed ? `Toggle details for ${r.customerName}` : undefined}
+                  >
                     <div>{date}</div>
                     <div>{time}</div>
                     <div className="customer-name-cell">

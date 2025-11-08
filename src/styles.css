@@ -1706,6 +1706,77 @@ body.modal-open .admin-search input {
     gap: 8px;
     margin-top: 4px;
   }
+
+  .tr.row-claimed {
+    background: rgba(59, 130, 246, 0.07);
+    border-color: rgba(59, 130, 246, 0.18);
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+  }
+
+  :root.dark-mode .tr.row-claimed {
+    background: rgba(56, 189, 248, 0.15);
+    border-color: rgba(125, 211, 252, 0.32);
+  }
+
+  .tr.row-claimed::after {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  :root.dark-mode .tr.row-claimed::after {
+    color: rgba(226, 232, 240, 0.7);
+  }
+
+  .tr.row-claimed.row-collapsed > div {
+    display: none;
+  }
+
+  .tr.row-claimed.row-collapsed > div:nth-child(3),
+  .tr.row-claimed.row-collapsed > div:nth-child(5) {
+    display: flex;
+  }
+
+  .tr.row-claimed.row-collapsed > div:nth-child(3)::before {
+    content: "Customer: ";
+  }
+
+  .tr.row-claimed.row-collapsed > div:nth-child(5)::before {
+    content: "Status: ";
+  }
+
+  .tr.row-claimed.row-collapsed .customer-name-display {
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  .tr.row-claimed.row-collapsed .customer-name-display span {
+    text-align: left;
+  }
+
+  .tr.row-claimed.row-collapsed .customer-name-display button {
+    display: none;
+  }
+
+  .tr.row-claimed.row-expanded > div {
+    display: flex;
+  }
+
+  .tr.row-claimed.row-expanded {
+    cursor: pointer;
+  }
+
+  .tr.row-claimed.row-collapsed::after {
+    content: 'Tap to expand';
+    text-align: right;
+  }
+
+  .tr.row-claimed.row-expanded::after {
+    content: 'Tap to collapse';
+    text-align: right;
+  }
 }
 
 /* Scroll to top button */
