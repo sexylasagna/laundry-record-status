@@ -204,6 +204,42 @@ export default function OverridePage() {
             )}
           </div>
         </div>
+
+        <div className="control-card">
+          <div className="control-card-header">
+            <h4 className="control-card-title">Generate Daily Report</h4>
+          </div>
+          <div className="control-card-description">
+            <p>
+              Review today&apos;s summary of customers marked as Done and Claimed
+              &amp; Paid. Helpful for end-of-day reporting and reconciliation.
+            </p>
+          </div>
+          <div className="control-card-actions">
+            <button
+              className="btn-control-secondary"
+              onClick={() => navigate('/override/report')}
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M3 4h18"></path>
+                <path d="M8 4v16"></path>
+                <path d="M16 4v16"></path>
+                <path d="M3 12h18"></path>
+                <path d="M3 20h18"></path>
+              </svg>
+              <span>Generate Report</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
