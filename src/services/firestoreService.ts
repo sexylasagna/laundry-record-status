@@ -36,6 +36,8 @@ function mapFirestoreDoc(docId: string, data: any): CustomerRecord {
   }
   
   const dateDone: string | undefined = data.date_done || undefined;
+  const dateDoneTime: string | undefined = data.date_done_time || undefined;
+  const datePaidTime: string | undefined = data.date_paid_time || undefined;
 
   return {
     id: docId,
@@ -44,7 +46,9 @@ function mapFirestoreDoc(docId: string, data: any): CustomerRecord {
     totalWeightKg: Number(data.total_kg) || 0,
     status: (data.status as LaundryStatus) || 1,
     datePaid: datePaid,
+    datePaidTime,
     dateDone,
+    dateDoneTime,
   };
 }
 
@@ -80,7 +84,9 @@ export async function updateCustomerStatusInFirestore(
   docId: string,
   status: LaundryStatus,
   datePaid?: string,
-  dateDone?: string
+  dateDone?: string,
+  datePaidTime?: string,
+  dateDoneTime?: string
 ): Promise<void> {
   if (!db) {
     throw new Error('Firestore is not initialized. Please configure Firebase environment variables.');
@@ -90,15 +96,32 @@ export async function updateCustomerStatusInFirestore(
     const docRef = doc(db, 'laundry_records', docId);
     const updateData: Record<string, any> = { status };
     
-    if (status === 3 && datePaid) {
-      updateData.date_paid = datePaid;
+    if (status === 3) {
+      if (datePaid) {
+        updateData.date_paid = datePaid;
+        console.log(`📅 Setting date_paid: ${datePaid} for document ${docId}`);
+      }
+      if (datePaidTime) {
+        updateData.date_paid_time = datePaidTime;
+        console.log(`⏱️ Setting date_paid_time: ${datePaidTime} for document ${docId}`);
+      }
       if (dateDone) {
         updateData.date_done = dateDone;
+        console.log(`📅 Preserving date_done: ${dateDone} for document ${docId}`);
       }
-      console.log(`📅 Adding date_paid: ${datePaid} to document ${docId}`);
-    } else if (status === 2 && dateDone) {
-      updateData.date_done = dateDone;
-      console.log(`📅 Adding date_done: ${dateDone} to document ${docId}`);
+      if (dateDoneTime) {
+        updateData.date_done_time = dateDoneTime;
+        console.log(`⏱️ Preserving date_done_time: ${dateDoneTime} for document ${docId}`);
+      }
+    } else if (status === 2) {
+      if (dateDone) {
+        updateData.date_done = dateDone;
+        console.log(`📅 Setting date_done: ${dateDone} for document ${docId}`);
+      }
+      if (dateDoneTime) {
+        updateData.date_done_time = dateDoneTime;
+        console.log(`⏱️ Setting date_done_time: ${dateDoneTime} for document ${docId}`);
+      }
     }
     
     console.log(`📝 Updating document ${docId} with data:`, updateData);

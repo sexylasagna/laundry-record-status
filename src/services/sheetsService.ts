@@ -147,7 +147,9 @@ export async function updateCustomerStatus(
   id: string,
   status: LaundryStatus,
   datePaid?: string,
-  dateDone?: string
+  dateDone?: string,
+  datePaidTime?: string,
+  dateDoneTime?: string
 ): Promise<CustomerRecord[]> {
   // Try Firestore first if configured
   const useFirestore = import.meta.env.VITE_USE_FIRESTORE === 'true' || 
@@ -156,7 +158,7 @@ export async function updateCustomerStatus(
   if (useFirestore) {
     try {
       console.log(`🔄 Updating Firestore document ${id} with status ${status}...`);
-      await updateCustomerStatusInFirestore(id, status, datePaid, dateDone);
+      await updateCustomerStatusInFirestore(id, status, datePaid, dateDone, datePaidTime, dateDoneTime);
       console.log(`✅ Successfully updated Firestore document ${id}`);
       // Refresh data from Firestore after update
       const records = await fetchCustomersFromFirestore();
@@ -175,13 +177,26 @@ export async function updateCustomerStatus(
     (r) => {
       if (r.id === id) {
         const update: Partial<CustomerRecord> = { status };
-        if (status === 3 && datePaid) { // Claimed & Paid
-          update.datePaid = datePaid;
+        if (status === 3) { // Claimed & Paid
+          if (datePaid) {
+            update.datePaid = datePaid;
+          }
+          if (datePaidTime) {
+            update.datePaidTime = datePaidTime;
+          }
           if (dateDone) {
             update.dateDone = dateDone;
           }
-        } else if (status === 2 && dateDone) {
-          update.dateDone = dateDone;
+          if (dateDoneTime) {
+            update.dateDoneTime = dateDoneTime;
+          }
+        } else if (status === 2) {
+          if (dateDone) {
+            update.dateDone = dateDone;
+          }
+          if (dateDoneTime) {
+            update.dateDoneTime = dateDoneTime;
+          }
         }
         return { ...r, ...update };
       }
@@ -197,7 +212,7 @@ export async function updateCustomerStatus(
       await fetch(writeEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status, datePaid, dateDone }),
+        body: JSON.stringify({ id, status, datePaid, dateDone, datePaidTime, dateDoneTime }),
       });
     } catch {
       // Ignore write errors; local persistence still applied

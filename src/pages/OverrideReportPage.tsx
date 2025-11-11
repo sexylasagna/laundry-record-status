@@ -200,9 +200,7 @@ export default function OverrideReportPage() {
                       <div className="report-list-name">
                         {record.customerName || 'Unnamed Customer'}
                       </div>
-                      <div className="report-list-time">
-                        Done at {formatTime(record.dateDone)}
-                      </div>
+                      <div className="report-list-time">Done at {formatTime(record.dateDoneTime || record.dateDone)}</div>
                     </li>
                   ))}
                 </ul>
@@ -225,9 +223,7 @@ export default function OverrideReportPage() {
                       <div className="report-list-name">
                         {record.customerName || 'Unnamed Customer'}
                       </div>
-                      <div className="report-list-time">
-                        Claimed at {formatTime(record.datePaid)}
-                      </div>
+                      <div className="report-list-time">Claimed at {formatTime(record.datePaidTime || record.datePaid)}</div>
                     </li>
                   ))}
                 </ul>

@@ -7,7 +7,9 @@ export interface CustomerRecord {
   totalWeightKg: number;
   status: LaundryStatus;
   datePaid?: string; // ISO date when claimed & paid
+  datePaidTime?: string; // ISO datetime captured when claimed & paid
   dateDone?: string; // ISO date when marked done
+  dateDoneTime?: string; // ISO datetime captured when marked done
 }
 
 export function getStatusText(status: LaundryStatus): string {

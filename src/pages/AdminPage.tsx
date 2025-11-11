@@ -13,10 +13,65 @@ function getTodayDate(): string {
   return today.toISOString().split('T')[0]; // YYYY-MM-DD
 }
 
+function getCurrentTimestamp(): string {
+  return new Date().toISOString();
+}
+
+function toIsoTimestamp(value?: string): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const parsedDirect = new Date(trimmed);
+  if (!Number.isNaN(parsedDirect.getTime())) {
+    return parsedDirect.toISOString();
+  }
+
+  const parsedMidnight = new Date(`${trimmed}T00:00:00`);
+  if (!Number.isNaN(parsedMidnight.getTime())) {
+    return parsedMidnight.toISOString();
+  }
+
+  return undefined;
+}
+
+// Extract date portion (YYYY-MM-DD) from various date string formats
+function extractDateOnly(dateString?: string): string {
+  const trimmed = dateString?.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  if (trimmed.includes('T')) {
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString().split('T')[0];
+    }
+    return trimmed.split('T')[0];
+  }
+
+  return trimmed.split(' ')[0];
+}
+
 // Parse date string to extract date and time separately
 function parseDateAndTime(dateString: string): { date: string; time: string } {
+  const trimmed = dateString.trim();
+  if (!trimmed) {
+    return { date: '-', time: '-' };
+  }
+
+  if (trimmed.includes('T')) {
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) {
+      return {
+        date: parsed.toLocaleDateString('en-CA'),
+        time: parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+    }
+  }
+
   // Handle formats like "2025-10-27 08:25 PM" or "2025-10-27"
-  const parts = dateString.trim().split(' ');
+  const parts = trimmed.split(' ');
   if (parts.length >= 3) {
     // Has time: "2025-10-27 08:25 PM"
     const date = parts[0];
@@ -24,20 +79,35 @@ function parseDateAndTime(dateString: string): { date: string; time: string } {
     return { date, time };
   }
   // No time, just date
-  return { date: parts[0] || dateString, time: '-' };
+  return { date: parts[0] || trimmed, time: '-' };
 }
 
 type SortOrder = 'asc' | 'desc' | null;
 
 function getDaysSince(dateString: string | undefined): number {
   if (!dateString) return 0;
-  const [datePart] = dateString.trim().split(' ');
-  const parsed = new Date(datePart);
+  const trimmed = dateString.trim();
+  if (!trimmed) return 0;
+
+  let dateOnly = trimmed;
+  if (trimmed.includes('T')) {
+    dateOnly = trimmed.split('T')[0];
+  } else if (trimmed.includes(' ')) {
+    dateOnly = trimmed.split(' ')[0];
+  }
+
+  const parsed = new Date(dateOnly);
   if (Number.isNaN(parsed.getTime())) {
     return 0;
   }
+
+  const normalized = new Date(parsed);
+  normalized.setHours(0, 0, 0, 0);
+
   const now = new Date();
-  const diff = now.getTime() - parsed.getTime();
+  now.setHours(0, 0, 0, 0);
+
+  const diff = now.getTime() - normalized.getTime();
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
 
@@ -187,7 +257,7 @@ export default function AdminPage() {
       // Show if status is "Done" (2)
       if (r.status === 2) return true;
       // Show if "Claimed & Paid" (3) and datePaid is today
-      if (r.status === 3 && r.datePaid === today) return true;
+      if (r.status === 3 && extractDateOnly(r.datePaid) === today) return true;
       // Hide "Claimed & Paid" from previous days
       return false;
     });
@@ -257,16 +327,19 @@ export default function AdminPage() {
   };
 
   const markDone = useCallback(async (id: string) => {
-    const today = getTodayDate();
-    const updated = await updateCustomerStatus(id, 2, undefined, today);
+    const nowTimestamp = getCurrentTimestamp();
+    const today = nowTimestamp.split('T')[0];
+    const updated = await updateCustomerStatus(id, 2, undefined, today, undefined, nowTimestamp);
     setRows(updated);
   }, []);
 
   const markClaimed = useCallback(async (id: string) => {
-    const today = getTodayDate();
+    const nowTimestamp = getCurrentTimestamp();
+    const today = nowTimestamp.split('T')[0];
     const recordToUpdate = rows.find((r) => r.id === id);
-    const dateDone = recordToUpdate?.dateDone || today;
-    const updated = await updateCustomerStatus(id, 3, today, dateDone);
+    const dateDone = extractDateOnly(recordToUpdate?.dateDone) || today;
+    const dateDoneTime = recordToUpdate?.dateDoneTime || toIsoTimestamp(recordToUpdate?.dateDone) || nowTimestamp;
+    const updated = await updateCustomerStatus(id, 3, today, dateDone, nowTimestamp, dateDoneTime);
     setRows(updated);
   }, [rows]);
 
@@ -313,11 +386,6 @@ export default function AdminPage() {
         alert('Failed to update total weight. Please try again.');
       }
     }
-  };
-
-  // Extract date from dateDropped (format: "2025-11-02 04:47 PM" -> "2025-11-02")
-  const extractDateOnly = (dateString: string): string => {
-    return dateString.split(' ')[0];
   };
 
   // Sync with Loyverse receipts
@@ -367,13 +435,27 @@ export default function AdminPage() {
           if (matchingRecord.status !== 3) {
             console.log(`✅ Matched: ${matchingRecord.customerName} on ${receipt.receiptDate}`);
             // Update to status = 3 (Claimed & Paid) with receipt date
-            const recordDateDone = matchingRecord.dateDone || extractDateOnly(matchingRecord.dateDropped);
-            await updateCustomerStatus(matchingRecord.id, 3, receipt.receiptDate, recordDateDone);
+            const receiptDate = extractDateOnly(receipt.receiptDate);
+            const receiptTimestamp = toIsoTimestamp(receipt.receiptDate) || getCurrentTimestamp();
+            const recordDateDone = extractDateOnly(matchingRecord.dateDone) || extractDateOnly(matchingRecord.dateDropped);
+            const recordDateDoneTime =
+              matchingRecord.dateDoneTime ||
+              toIsoTimestamp(matchingRecord.dateDone) ||
+              toIsoTimestamp(matchingRecord.dateDropped) ||
+              receiptTimestamp;
+            await updateCustomerStatus(
+              matchingRecord.id,
+              3,
+              receiptDate,
+              recordDateDone,
+              receiptTimestamp,
+              recordDateDoneTime
+            );
             updatedCount++;
             updatedRecords.push({
               id: matchingRecord.id,
               customerName: matchingRecord.customerName,
-              receiptDate: receipt.receiptDate,
+              receiptDate: receiptTimestamp,
             });
           }
         }
