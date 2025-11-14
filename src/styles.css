@@ -485,6 +485,75 @@ body {
   align-items: center;
   margin-top: 8px;
 }
+
+.table-view-toggle {
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 0;
+  overflow: hidden;
+  width: fit-content;
+  height: 40px;
+  min-height: 40px;
+}
+
+.table-view-toggle.desktop-toggle {
+  width: auto;
+  min-width: 140px;
+  flex-shrink: 0;
+}
+
+.table-view-toggle-option {
+  flex: 1;
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.table-view-toggle-option:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+:root.dark-mode .table-view-toggle-option:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.table-view-toggle-option.active {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+}
+
+:root.dark-mode .table-view-toggle-option.active {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: #ffffff;
+}
+
+.table-simple .thead,
+.table-simple .tr {
+  grid-template-columns: 1.5fr 2fr 2fr;
+}
+
+.table-simple .thead > div,
+.table-simple .tr > div {
+  text-align: left;
+}
+
+.table-simple .thead > div:last-child,
+.table-simple .tr > div:last-child {
+  text-align: center;
+}
 .admin-search-wrapper { flex: 1; }
 .admin-search { position: relative; width: 100%; max-width: 400px; }
 .sync-btn {
@@ -2104,6 +2173,22 @@ body.modal-open .admin-search input {
   .admin-search-wrapper {
     margin-top: 0;
   }
+  .table-view-toggle {
+    order: 1;
+    width: 100%;
+    justify-content: stretch;
+    margin-top: 8px;
+  }
+  
+  .table-view-toggle.desktop-toggle {
+    width: 100%;
+    min-width: 100%;
+  }
+  
+  .table-view-toggle-option {
+    flex: 1;
+    padding: 10px 16px;
+  }
   .tbody { background: transparent; }
   .tr { 
     display: flex; 
@@ -2135,6 +2220,59 @@ body.modal-open .admin-search input {
   .tr > div:nth-child(5)::before { content: "Status: "; }
   .tr > div:nth-child(6)::before { content: "Date Paid: "; }
   .tr > div:nth-child(7)::before { content: ""; }
+  
+  /* Simple table mobile styles */
+  .table-simple .thead {
+    display: none;
+  }
+  
+  .table-simple .tr {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    background: var(--panel);
+  }
+  
+  .table-simple .tr > div {
+    padding: 0;
+    border-bottom: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .table-simple .tr > div:nth-child(1)::before { content: "Date Dropped: "; }
+  .table-simple .tr > div:nth-child(2)::before { content: "Customer Name: "; }
+  .table-simple .tr > div:nth-child(3)::before { content: ""; }
+  
+  .table-simple .tr > div:nth-child(2) {
+    font-weight: 700;
+    color: var(--text);
+  }
+  
+  .table-simple .tr > div:nth-child(3) {
+    justify-content: flex-end;
+    margin-top: 4px;
+  }
+  
+  .table-simple .actions {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    justify-content: flex-end;
+  }
+  
+  .table-simple .actions .btn {
+    flex: 1;
+    min-width: 0;
+    max-width: 150px;
+    padding: 10px 16px;
+    font-size: 14px;
+  }
   /* Bold customer name in mobile view only */
   .tr > div:nth-child(3) {
     font-weight: 700;

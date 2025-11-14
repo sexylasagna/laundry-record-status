@@ -164,6 +164,24 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<SortOrder>(null);
+  const [tableViewMode, setTableViewMode] = useState<'normal' | 'simple'>(() => {
+    try {
+      const saved = localStorage.getItem('kwiksilver:table_view_mode');
+      return (saved === 'simple' || saved === 'normal') ? saved : 'normal';
+    } catch {
+      return 'normal';
+    }
+  });
+
+  const handleTableViewModeChange = (mode: 'normal' | 'simple') => {
+    setTableViewMode(mode);
+    try {
+      localStorage.setItem('kwiksilver:table_view_mode', mode);
+    } catch (error) {
+      console.error('Failed to save table view mode to localStorage:', error);
+    }
+  };
+
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -744,7 +762,7 @@ export default function AdminPage() {
             <button 
               className="sync-btn" 
               onClick={handleSync} 
-              disabled={syncing}
+              disabled={syncing || import.meta.env.VITE_ENABLE_SYNC_BUTTON === 'false'}
               title="Sync with Loyverse receipts"
             >
               {syncing ? (
@@ -768,6 +786,22 @@ export default function AdminPage() {
                 </span>
               )}
             </button>
+            <div className="table-view-toggle desktop-toggle">
+              <button
+                type="button"
+                className={`table-view-toggle-option ${tableViewMode === 'normal' ? 'active' : ''}`}
+                onClick={() => handleTableViewModeChange('normal')}
+              >
+                Normal
+              </button>
+              <button
+                type="button"
+                className={`table-view-toggle-option ${tableViewMode === 'simple' ? 'active' : ''}`}
+                onClick={() => handleTableViewModeChange('simple')}
+              >
+                Simple
+              </button>
+            </div>
           </div>
           {syncMessage && (
             <div className={`sync-message ${syncMessage.includes('✅') ? 'sync-success' : 'sync-info'}`}>
@@ -776,7 +810,7 @@ export default function AdminPage() {
           )}
         </>
       )}
-      {!loading && (
+      {!loading && tableViewMode === 'normal' && (
         <div className="table">
           <div className="thead">
             <div>Date Dropped</div>
@@ -929,6 +963,52 @@ export default function AdminPage() {
                       <StatusBadge status={r.status} />
                     </div>
                     <div>{r.datePaid || '-'}</div>
+                    <div className="actions">
+                      <button
+                        className="btn btn-done"
+                        onClick={() => markDone(r.id)}
+                        disabled={claimed || done}
+                      >
+                        Done
+                      </button>
+                      <button
+                        className="btn btn-claimed"
+                        onClick={() => markClaimed(r.id)}
+                        disabled={claimed}
+                      >
+                        Claimed & Paid
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+      {!loading && tableViewMode === 'simple' && (
+        <div className="table table-simple">
+          <div className="thead">
+            <div>Date Dropped</div>
+            <div>Customer Name</div>
+            <div>Actions</div>
+          </div>
+          <div className="tbody">
+            {displayRows.length === 0 ? (
+              <div className="tr-empty">
+                <div>No records found</div>
+              </div>
+            ) : (
+              displayRows.map((r) => {
+                const claimed = r.status === 3; // Claimed & Paid
+                const done = r.status === 2; // Done
+                const formattedDate = formatDateDisplay(r.dateDropped);
+                return (
+                  <div className="tr" key={r.id}>
+                    <div>{formattedDate}</div>
+                    <div className="customer-name-cell">
+                      <span>{r.customerName}</span>
+                    </div>
                     <div className="actions">
                       <button
                         className="btn btn-done"
