@@ -177,6 +177,101 @@ export async function updateTotalWeightInFirestore(
   }
 }
 
+// Update backend data (status, dates, timestamps) in Firestore
+export interface UpdateBackendDataParams {
+  status: LaundryStatus;
+  dateDropped: string;
+  dateDone?: string | null;
+  dateDoneTime?: string | null;
+  datePaid?: string | null;
+  datePaidTime?: string | null;
+  oldStatus?: LaundryStatus | null;
+}
+
+export async function updateBackendDataInFirestore(
+  docId: string,
+  params: UpdateBackendDataParams
+): Promise<void> {
+  if (!db) {
+    throw new Error('Firestore is not initialized. Please configure Firebase environment variables.');
+  }
+  
+  try {
+    const docRef = doc(db, 'laundry_records', docId);
+    const updateData: Record<string, any> = {
+      status: params.status,
+      date: params.dateDropped, // dateDropped is stored as 'date' in Firestore
+    };
+
+    const oldStatus = params.oldStatus;
+    const newStatus = params.status;
+
+    // Track if fields were removed due to status changes
+    const datePaidRemovedByStatus = oldStatus === 3 && newStatus === 2;
+    const dateDoneRemovedByStatus = oldStatus === 2 && newStatus === 1;
+
+    // Logic: If status moves from 3 to 2, remove date_claimed and date_claimed_time
+    if (datePaidRemovedByStatus) {
+      updateData.date_paid = null;
+      updateData.date_paid_time = null;
+      console.log(`🔄 Status changed from 3 to 2: removing date_paid and date_paid_time`);
+    }
+
+    // Logic: If status moves from 2 to 1, remove date_done and date_done_time
+    if (dateDoneRemovedByStatus) {
+      updateData.date_done = null;
+      updateData.date_done_time = null;
+      console.log(`🔄 Status changed from 2 to 1: removing date_done and date_done_time`);
+    }
+
+    // Handle date_done (only if not removed by status change)
+    if (!dateDoneRemovedByStatus) {
+      if (params.dateDone === null || params.dateDone === undefined || params.dateDone === '') {
+        updateData.date_done = null;
+        updateData.date_done_time = null;
+        console.log(`🗑️ Removing date_done and date_done_time`);
+      } else {
+        updateData.date_done = params.dateDone;
+        if (params.dateDoneTime) {
+          updateData.date_done_time = params.dateDoneTime;
+        } else {
+          // If dateDone is set but dateDoneTime is not provided, set it to midnight of that date
+          updateData.date_done_time = new Date(`${params.dateDone}T00:00:00`).toISOString();
+        }
+        console.log(`📅 Setting date_done: ${params.dateDone}, date_done_time: ${updateData.date_done_time}`);
+      }
+    }
+
+    // Handle date_paid (only if not removed by status change)
+    if (!datePaidRemovedByStatus) {
+      if (params.datePaid === null || params.datePaid === undefined || params.datePaid === '') {
+        updateData.date_paid = null;
+        updateData.date_paid_time = null;
+        console.log(`🗑️ Removing date_paid and date_paid_time`);
+      } else {
+        updateData.date_paid = params.datePaid;
+        if (params.datePaidTime) {
+          updateData.date_paid_time = params.datePaidTime;
+        } else {
+          // If datePaid is set but datePaidTime is not provided, set it to midnight of that date
+          updateData.date_paid_time = new Date(`${params.datePaid}T00:00:00`).toISOString();
+        }
+        console.log(`📅 Setting date_paid: ${params.datePaid}, date_paid_time: ${updateData.date_paid_time}`);
+      }
+    }
+
+    // Use deleteField() equivalent by setting to null, but Firestore will handle null properly
+    // For Firestore, we can use FieldValue.delete() if needed, but null should work for our use case
+    
+    console.log(`📝 Updating backend data for document ${docId}:`, updateData);
+    await updateDoc(docRef, updateData);
+    console.log(`✅ Successfully updated backend data for document ${docId}`);
+  } catch (error) {
+    console.error(`❌ Error updating backend data for document ${docId}:`, error);
+    throw error;
+  }
+}
+
 // Delete all records with status = 3 (Claimed & Paid) from Firestore
 export async function deleteClaimedAndPaidRecords(): Promise<number> {
   if (!db) {
@@ -256,6 +351,69 @@ export function subscribeToReminderNotification(
     },
     (error) => {
       console.error('❌ Error listening to reminder notification:', error);
+      onChange(null);
+    }
+  );
+}
+
+// Attention Note functions
+const ATTENTION_NOTE_COLLECTION = 'laundry_attention_note';
+const ATTENTION_NOTE_DOC_ID = 'current';
+
+export interface AttentionNotePayload {
+  note: string;
+  createdAt: string;
+  sentBy: string;
+}
+
+export async function setAttentionNote(note: string, sentBy: string = 'Nikka'): Promise<void> {
+  if (!db) {
+    throw new Error('Firestore is not initialized. Please configure Firebase environment variables.');
+  }
+  const docRef = doc(db, ATTENTION_NOTE_COLLECTION, ATTENTION_NOTE_DOC_ID);
+  const payload: AttentionNotePayload = {
+    note: note.trim(),
+    createdAt: new Date().toISOString(),
+    sentBy: sentBy.trim(),
+  };
+  await setDoc(docRef, payload);
+  console.log('✅ Attention note set in Firestore');
+}
+
+export async function clearAttentionNote(): Promise<void> {
+  if (!db) {
+    throw new Error('Firestore is not initialized. Please configure Firebase environment variables.');
+  }
+  const docRef = doc(db, ATTENTION_NOTE_COLLECTION, ATTENTION_NOTE_DOC_ID);
+  await deleteDoc(docRef);
+  console.log('✅ Attention note cleared from Firestore');
+}
+
+export function subscribeToAttentionNote(
+  onChange: (payload: AttentionNotePayload | null) => void
+): () => void {
+  if (!db) {
+    console.warn('Firestore is not initialized; attention note subscription disabled.');
+    onChange(null);
+    return () => {};
+  }
+  const docRef = doc(db, ATTENTION_NOTE_COLLECTION, ATTENTION_NOTE_DOC_ID);
+  return onSnapshot(
+    docRef,
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        onChange(null);
+        return;
+      }
+      const data = snapshot.data() as AttentionNotePayload;
+      onChange({
+        note: data.note || '',
+        createdAt: data.createdAt || new Date().toISOString(),
+        sentBy: data.sentBy || 'Nikka',
+      });
+    },
+    (error) => {
+      console.error('❌ Error listening to attention note:', error);
       onChange(null);
     }
   );

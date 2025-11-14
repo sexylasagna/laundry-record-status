@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { deleteClaimedAndPaidRecords, setReminderNotification, clearReminderNotification } from '../services/firestoreService';
+import { deleteClaimedAndPaidRecords, setReminderNotification, clearReminderNotification, setAttentionNote } from '../services/firestoreService';
 import { fetchCustomers } from '../services/sheetsService';
 import { CustomerRecord, ReminderItem } from '../types';
 
@@ -16,12 +16,38 @@ function getDaysSince(dateString: string | undefined): number {
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
 
+const ATTENTION_NOTE_STORAGE_KEY = 'kwiksilver:attention_note';
+
 export default function OverridePage() {
   const navigate = useNavigate();
   const [deleting, setDeleting] = useState(false);
   const [deleteMessage, setDeleteMessage] = useState<string | null>(null);
   const [sendingReminder, setSendingReminder] = useState(false);
   const [reminderMessage, setReminderMessage] = useState<string | null>(null);
+  const [attentionNote, setAttentionNoteText] = useState(() => {
+    // Load from localStorage on mount
+    try {
+      const saved = localStorage.getItem(ATTENTION_NOTE_STORAGE_KEY);
+      return saved || '';
+    } catch {
+      return '';
+    }
+  });
+  const [sendingAttentionNote, setSendingAttentionNote] = useState(false);
+  const [attentionNoteMessage, setAttentionNoteMessage] = useState<string | null>(null);
+
+  // Save to localStorage whenever attentionNote changes
+  useEffect(() => {
+    try {
+      if (attentionNote.trim()) {
+        localStorage.setItem(ATTENTION_NOTE_STORAGE_KEY, attentionNote);
+      } else {
+        localStorage.removeItem(ATTENTION_NOTE_STORAGE_KEY);
+      }
+    } catch (error) {
+      console.error('Failed to save attention note to localStorage:', error);
+    }
+  }, [attentionNote]);
 
   const handleDeleteClaimedAndPaid = async () => {
     // Confirm before deleting
@@ -96,6 +122,40 @@ export default function OverridePage() {
     } finally {
       setSendingReminder(false);
       setTimeout(() => setReminderMessage(null), 5000);
+    }
+  };
+
+  const handleSendAttentionNote = async () => {
+    if (!attentionNote.trim()) {
+      setAttentionNoteMessage('⚠️ Please enter an announcement message.');
+      setTimeout(() => setAttentionNoteMessage(null), 3000);
+      return;
+    }
+
+    setSendingAttentionNote(true);
+    setAttentionNoteMessage(null);
+
+    try {
+      await setAttentionNote(attentionNote.trim(), 'Nikka');
+      setAttentionNoteMessage('✅ Attention note sent successfully!');
+      // Don't clear the text field - retain the value for easy re-sending
+      setTimeout(() => setAttentionNoteMessage(null), 5000);
+    } catch (error) {
+      console.error('Error sending attention note:', error);
+      setAttentionNoteMessage(`❌ Error sending attention note: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setSendingAttentionNote(false);
+      setTimeout(() => setAttentionNoteMessage(null), 5000);
+    }
+  };
+
+  const handleClearAttentionNote = () => {
+    setAttentionNoteText('');
+    setAttentionNoteMessage(null);
+    try {
+      localStorage.removeItem(ATTENTION_NOTE_STORAGE_KEY);
+    } catch (error) {
+      console.error('Failed to clear attention note from localStorage:', error);
     }
   };
 
@@ -238,6 +298,114 @@ export default function OverridePage() {
               </svg>
               <span>Generate Report</span>
             </button>
+          </div>
+        </div>
+
+        <div className="control-card">
+          <div className="control-card-header">
+            <h4 className="control-card-title">Update Backend Data</h4>
+          </div>
+          <div className="control-card-description">
+            <p>
+              Edit status, date dropped, date done, date paid, and their timestamps
+              for any record. Useful for correcting data or backdating entries.
+            </p>
+            <ul className="control-list">
+              <li>Update status, date dropped, date done, and date paid.</li>
+              <li>Automatically handles date/time field cleanup based on status changes.</li>
+              <li>Changes are saved directly to Firestore.</li>
+            </ul>
+          </div>
+          <div className="control-card-actions">
+            <button
+              className="btn-control-orange"
+              onClick={() => navigate('/override/update-backend-data')}
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+              <span>Update Backend Data</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="control-card">
+          <div className="control-card-header">
+            <h4 className="control-card-title">Send Attention Note</h4>
+          </div>
+          <div className="control-card-description">
+            <p>
+              Send an announcement popup to the Admin Control page. The popup will appear
+              immediately on all devices without refreshing.
+            </p>
+            <p className="control-warning">⚠️ This will replace any existing attention note.</p>
+          </div>
+          <div className="control-card-actions">
+            <div className="attention-note-input-wrapper">
+              <textarea
+                className="attention-note-input"
+                placeholder="Enter your announcement message here..."
+                value={attentionNote}
+                onChange={(e) => setAttentionNoteText(e.target.value)}
+                rows={4}
+                disabled={sendingAttentionNote}
+              />
+              {attentionNote && (
+                <button
+                  type="button"
+                  className="attention-note-clear-btn"
+                  onClick={handleClearAttentionNote}
+                  disabled={sendingAttentionNote}
+                  title="Clear text"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <button
+              className="btn-control-green"
+              onClick={handleSendAttentionNote}
+              disabled={sendingAttentionNote || !attentionNote.trim()}
+            >
+              {sendingAttentionNote ? (
+                <>
+                  <div className="spinner-small" />
+                  <span>Sending...</span>
+                </>
+              ) : (
+                <>
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M22 2L11 13"></path>
+                    <path d="M22 2l-7 20-4-9-9-4 20-7z"></path>
+                  </svg>
+                  <span>Send Attention Note</span>
+                </>
+              )}
+            </button>
+            {attentionNoteMessage && (
+              <div className={`control-message ${attentionNoteMessage.includes('✅') ? 'success' : attentionNoteMessage.includes('❌') ? 'error' : 'info'}`}>
+                {attentionNoteMessage}
+              </div>
+            )}
           </div>
         </div>
       </div>

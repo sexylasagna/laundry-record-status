@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CustomerRecord, ReminderEnrichedItem, ReminderItem, ReminderType } from '../types';
 import { fetchCustomers, updateCustomerStatus, updateCustomerName, updateTotalWeight } from '../services/sheetsService';
-import { subscribeToReminderNotification, clearReminderNotification } from '../services/firestoreService';
+import { subscribeToReminderNotification, clearReminderNotification, subscribeToAttentionNote, clearAttentionNote, AttentionNotePayload } from '../services/firestoreService';
 import { fetchReceiptsWithCustomers } from '../services/loyverseService';
 import StatusBadge from '../components/StatusBadge';
 import AdminSearchBar from '../components/AdminSearchBar';
@@ -82,6 +82,35 @@ function parseDateAndTime(dateString: string): { date: string; time: string } {
   return { date: parts[0] || trimmed, time: '-' };
 }
 
+// Format date to "November 1, 2025" format
+function formatDateDisplay(dateString: string): string {
+  if (!dateString || !dateString.trim()) {
+    return '-';
+  }
+
+  const trimmed = dateString.trim();
+  let date: Date;
+
+  // Handle ISO format or date with time
+  if (trimmed.includes('T')) {
+    date = new Date(trimmed);
+  } else {
+    // Handle "2025-10-27 08:25 PM" or "2025-10-27"
+    const datePart = trimmed.split(' ')[0];
+    date = new Date(datePart);
+  }
+
+  if (Number.isNaN(date.getTime())) {
+    return trimmed; // Return original if parsing fails
+  }
+
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
 type SortOrder = 'asc' | 'desc' | null;
 
 function getDaysSince(dateString: string | undefined): number {
@@ -146,8 +175,20 @@ export default function AdminPage() {
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [reminderCreatedAt, setReminderCreatedAt] = useState<string | null>(null);
   const [reminderRawItems, setReminderRawItems] = useState<ReminderItem[]>([]);
+  const [attentionNote, setAttentionNote] = useState<AttentionNotePayload | null>(null);
+  const [showAttentionNoteModal, setShowAttentionNoteModal] = useState(false);
   const closeReminderModal = useCallback(() => {
     setShowReminderModal(false);
+  }, []);
+
+  const dismissAttentionNote = useCallback(async () => {
+    setShowAttentionNoteModal(false);
+    setAttentionNote(null);
+    try {
+      await clearAttentionNote();
+    } catch (error) {
+      console.error('Failed to clear attention note:', error);
+    }
   }, []);
 
   const dismissReminder = useCallback(async () => {
@@ -197,6 +238,19 @@ export default function AdminPage() {
       } else {
         setReminderRawItems([]);
         setReminderCreatedAt(null);
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToAttentionNote((payload) => {
+      if (payload && payload.note && payload.note.trim()) {
+        setAttentionNote(payload);
+        setShowAttentionNoteModal(true);
+      } else {
+        setAttentionNote(null);
+        setShowAttentionNoteModal(false);
       }
     });
     return unsubscribe;
@@ -617,6 +671,44 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+      {showAttentionNoteModal && attentionNote && (
+        <div
+          className="attention-note-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="attention-note-title"
+          onClick={dismissAttentionNote}
+        >
+          <div className="attention-note-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="attention-note-header">
+              <h3 id="attention-note-title">Attention</h3>
+              <button
+                className="attention-note-close"
+                onClick={dismissAttentionNote}
+                aria-label="Close attention note"
+              >
+                ×
+              </button>
+            </div>
+            {attentionNote.createdAt && (
+              <div className="attention-note-meta">
+                Sent {new Date(attentionNote.createdAt).toLocaleString()}
+                {attentionNote.sentBy && ` • Sent by: ${attentionNote.sentBy}`}
+              </div>
+            )}
+            <div className="attention-note-content">
+              <p>{attentionNote.note}</p>
+            </div>
+            <div className="attention-note-footer">
+              <button className="btn btn-claimed" onClick={dismissAttentionNote}>
+                Got it, understood
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <h2>Kwiksilver Laundry Record Status</h2>
       <div className="header-buttons">
         <button 
@@ -684,9 +776,7 @@ export default function AdminPage() {
           )}
         </>
       )}
-      {loading ? (
-        <div className="muted">Loading records...</div>
-      ) : (
+      {!loading && (
         <div className="table">
           <div className="thead">
             <div>Date Dropped</div>
@@ -707,6 +797,7 @@ export default function AdminPage() {
                 const claimed = r.status === 3; // Claimed & Paid
                 const done = r.status === 2; // Done
                 const { date, time } = parseDateAndTime(r.dateDropped);
+                const formattedDate = formatDateDisplay(r.dateDropped);
                 const isExpanded = expandedRows.has(r.id);
                 const isCollapsed = claimed && !isExpanded;
                 const rowClasses = ['tr'];
@@ -724,7 +815,7 @@ export default function AdminPage() {
                     aria-expanded={claimed ? !isCollapsed : undefined}
                     aria-label={claimed ? `Toggle details for ${r.customerName}` : undefined}
                   >
-                    <div>{date}</div>
+                    <div>{formattedDate}</div>
                     <div>{time}</div>
                     <div className="customer-name-cell">
                       {editingId === r.id && editingField === 'name' ? (

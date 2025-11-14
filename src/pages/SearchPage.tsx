@@ -4,12 +4,40 @@ import StatusBadge from '../components/StatusBadge';
 import { CustomerRecord, getStatusText } from '../types';
 import { fetchCustomers } from '../services/sheetsService';
 
+// Format date to "November 1, 2025" format
+function formatDateDisplay(dateString: string): string {
+  if (!dateString || !dateString.trim()) {
+    return '-';
+  }
+
+  const trimmed = dateString.trim();
+  let date: Date;
+
+  // Handle ISO format or date with time
+  if (trimmed.includes('T')) {
+    date = new Date(trimmed);
+  } else {
+    // Handle "2025-10-27 08:25 PM" or "2025-10-27"
+    const datePart = trimmed.split(' ')[0];
+    date = new Date(datePart);
+  }
+
+  if (Number.isNaN(date.getTime())) {
+    return trimmed; // Return original if parsing fails
+  }
+
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
 export default function SearchPage() {
   const [query, setQuery] = useState('');
   const [typing, setTyping] = useState(false);
   const [data, setData] = useState<CustomerRecord[] | null>(null);
   const [showTooltip, setShowTooltip] = useState(false);
-
   useEffect(() => {
     fetchCustomers().then(setData);
   }, []);
@@ -56,8 +84,7 @@ export default function SearchPage() {
           <div className="muted">No results found</div>
         )}
         {!typing && results.map((r) => {
-          // Extract just the date part (before the space if time exists)
-          const dateOnly = r.dateDropped.split(' ')[0];
+          const formattedDate = formatDateDisplay(r.dateDropped);
           return (
             <div className="result-row" key={r.id}>
               <div className="result-header">
@@ -65,7 +92,7 @@ export default function SearchPage() {
                 <StatusBadge status={r.status} />
               </div>
               <div className="result-meta">
-                <span className="result-date">Dropped Date: {dateOnly}</span>
+                <span className="result-date">Dropped Date: {formattedDate}</span>
               </div>
             </div>
           );

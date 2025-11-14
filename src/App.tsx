@@ -3,6 +3,7 @@ import SearchPage from './pages/SearchPage';
 import AdminPage from './pages/AdminPage';
 import OverridePage from './pages/OverridePage';
 import OverrideReportPage from './pages/OverrideReportPage';
+import UpdateBackendDataPage from './pages/UpdateBackendDataPage';
 import MyDayPage from './pages/MyDayPage';
 import NavBar from './components/NavBar';
 import Footer from './components/Footer';
@@ -52,6 +53,14 @@ export default function App() {
             element={
               <RequireOverrideAuth>
                 <OverrideReportPage />
+              </RequireOverrideAuth>
+            }
+          />
+          <Route
+            path="/override/update-backend-data"
+            element={
+              <RequireOverrideAuth>
+                <UpdateBackendDataPage />
               </RequireOverrideAuth>
             }
           />
