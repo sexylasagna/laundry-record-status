@@ -195,6 +195,9 @@ export default function AdminPage() {
   const [reminderRawItems, setReminderRawItems] = useState<ReminderItem[]>([]);
   const [attentionNote, setAttentionNote] = useState<AttentionNotePayload | null>(null);
   const [showAttentionNoteModal, setShowAttentionNoteModal] = useState(false);
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [confirmationAction, setConfirmationAction] = useState<'done' | 'claimed' | null>(null);
+  const [confirmationId, setConfirmationId] = useState<string | null>(null);
   const closeReminderModal = useCallback(() => {
     setShowReminderModal(false);
   }, []);
@@ -397,6 +400,63 @@ export default function AdminPage() {
       setSortOrder(null); // No sort
     }
   };
+
+  const handleConfirmAction = useCallback(async () => {
+    if (!confirmationId || !confirmationAction) return;
+    
+    setShowConfirmationModal(false);
+    const id = confirmationId;
+    const action = confirmationAction;
+    setConfirmationId(null);
+    setConfirmationAction(null);
+
+    if (action === 'done') {
+      const nowTimestamp = getCurrentTimestamp();
+      const today = nowTimestamp.split('T')[0];
+      const updated = await updateCustomerStatus(id, 2, undefined, today, undefined, nowTimestamp);
+      setRows(updated);
+    } else if (action === 'claimed') {
+      const nowTimestamp = getCurrentTimestamp();
+      const today = nowTimestamp.split('T')[0];
+      const recordToUpdate = rows.find((r) => r.id === id);
+      const dateDone = extractDateOnly(recordToUpdate?.dateDone) || today;
+      const dateDoneTime = recordToUpdate?.dateDoneTime || toIsoTimestamp(recordToUpdate?.dateDone) || nowTimestamp;
+      const updated = await updateCustomerStatus(id, 3, today, dateDone, nowTimestamp, dateDoneTime);
+      setRows(updated);
+    }
+  }, [confirmationId, confirmationAction, rows]);
+
+  const handleCancelAction = useCallback(() => {
+    setShowConfirmationModal(false);
+    setConfirmationId(null);
+    setConfirmationAction(null);
+  }, []);
+
+  const requestMarkDone = useCallback((id: string) => {
+    setConfirmationId(id);
+    setConfirmationAction('done');
+    setShowConfirmationModal(true);
+  }, []);
+
+  const requestMarkClaimed = useCallback((id: string) => {
+    setConfirmationId(id);
+    setConfirmationAction('claimed');
+    setShowConfirmationModal(true);
+  }, []);
+
+  const requestMarkDoneFromReminder = useCallback((id: string) => {
+    setShowReminderModal(false);
+    setConfirmationId(id);
+    setConfirmationAction('done');
+    setShowConfirmationModal(true);
+  }, []);
+
+  const requestMarkClaimedFromReminder = useCallback((id: string) => {
+    setShowReminderModal(false);
+    setConfirmationId(id);
+    setConfirmationAction('claimed');
+    setShowConfirmationModal(true);
+  }, []);
 
   const markDone = useCallback(async (id: string) => {
     const nowTimestamp = getCurrentTimestamp();
@@ -661,14 +721,14 @@ export default function AdminPage() {
                     <div className="reminder-item-actions">
                       <button
                         className="btn btn-done"
-                        onClick={() => markDone(record.id)}
+                        onClick={() => requestMarkDoneFromReminder(record.id)}
                         disabled={record.status !== 1}
                       >
                         Done
                       </button>
                       <button
                         className="btn btn-claimed"
-                        onClick={() => markClaimed(record.id)}
+                        onClick={() => requestMarkClaimedFromReminder(record.id)}
                         disabled={record.status === 3}
                       >
                         Claimed & Paid
@@ -721,6 +781,26 @@ export default function AdminPage() {
             <div className="attention-note-footer">
               <button className="btn btn-claimed" onClick={dismissAttentionNote}>
                 Got it, understood
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showConfirmationModal && (
+        <div className="modal-backdrop" onClick={handleCancelAction}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Are you sure?</h3>
+            <p>
+              {confirmationAction === 'done'
+                ? 'Are you sure you want to mark this record as Done?'
+                : 'Are you sure you want to mark this record as Claimed & Paid?'}
+            </p>
+            <div className="modal-actions">
+              <button className="btn ghost" onClick={handleCancelAction}>
+                Cancel
+              </button>
+              <button className="btn primary" onClick={handleConfirmAction}>
+                Yes
               </button>
             </div>
           </div>
@@ -966,14 +1046,14 @@ export default function AdminPage() {
                     <div className="actions">
                       <button
                         className="btn btn-done"
-                        onClick={() => markDone(r.id)}
+                        onClick={() => requestMarkDone(r.id)}
                         disabled={claimed || done}
                       >
                         Done
                       </button>
                       <button
                         className="btn btn-claimed"
-                        onClick={() => markClaimed(r.id)}
+                        onClick={() => requestMarkClaimed(r.id)}
                         disabled={claimed}
                       >
                         Claimed & Paid
@@ -1012,14 +1092,14 @@ export default function AdminPage() {
                     <div className="actions">
                       <button
                         className="btn btn-done"
-                        onClick={() => markDone(r.id)}
+                        onClick={() => requestMarkDone(r.id)}
                         disabled={claimed || done}
                       >
                         Done
                       </button>
                       <button
                         className="btn btn-claimed"
-                        onClick={() => markClaimed(r.id)}
+                        onClick={() => requestMarkClaimed(r.id)}
                         disabled={claimed}
                       >
                         Claimed & Paid
