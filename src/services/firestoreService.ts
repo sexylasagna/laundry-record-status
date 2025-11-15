@@ -272,6 +272,23 @@ export async function updateBackendDataInFirestore(
   }
 }
 
+// Delete a single customer record from Firestore
+export async function deleteCustomerRecord(docId: string): Promise<void> {
+  if (!db) {
+    throw new Error('Firestore is not initialized. Please configure Firebase environment variables.');
+  }
+  
+  try {
+    const docRef = doc(db, 'laundry_records', docId);
+    console.log(`🗑️ Deleting customer record ${docId}`);
+    await deleteDoc(docRef);
+    console.log(`✅ Successfully deleted customer record ${docId}`);
+  } catch (error) {
+    console.error(`❌ Error deleting customer record ${docId}:`, error);
+    throw error;
+  }
+}
+
 // Delete all records with status = 3 (Claimed & Paid) from Firestore
 export async function deleteClaimedAndPaidRecords(): Promise<number> {
   if (!db) {

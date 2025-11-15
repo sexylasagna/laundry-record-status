@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchCustomers } from '../services/sheetsService';
-import { updateBackendDataInFirestore } from '../services/firestoreService';
+import { updateBackendDataInFirestore, deleteCustomerRecord } from '../services/firestoreService';
 import { CustomerRecord, LaundryStatus } from '../types';
 import AdminSearchBar from '../components/AdminSearchBar';
 
@@ -143,6 +143,10 @@ export default function UpdateBackendDataPage() {
   const [originalStatus, setOriginalStatus] = useState<LaundryStatus | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteMessage, setDeleteMessage] = useState<string | null>(null);
   const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
@@ -266,6 +270,53 @@ export default function UpdateBackendDataPage() {
       setSaveMessage(`❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const requestDelete = (id: string) => {
+    setDeletingId(id);
+    setShowDeleteConfirm(true);
+    setDeleteMessage(null);
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setDeletingId(null);
+    setDeleteMessage(null);
+  };
+
+  const handleDelete = async () => {
+    if (!deletingId) return;
+
+    setDeleting(true);
+    setDeleteMessage(null);
+
+    try {
+      await deleteCustomerRecord(deletingId);
+      
+      // Refresh records
+      const updated = await fetchCustomers();
+      setRecords(updated);
+      
+      setDeleteMessage('✅ Record deleted successfully!');
+      setShowDeleteConfirm(false);
+      
+      // Close edit form if it was open for this record
+      if (editingId === deletingId) {
+        setEditingId(null);
+        setEditForm(null);
+        setOriginalStatus(null);
+      }
+      
+      setTimeout(() => {
+        setDeletingId(null);
+        setDeleteMessage(null);
+      }, 1500);
+    } catch (err) {
+      console.error('Error deleting record:', err);
+      setDeleteMessage(`❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -482,13 +533,22 @@ export default function UpdateBackendDataPage() {
                   <div className="update-backend-view-header">
                     <div className="update-backend-view-name-wrapper">
                       <h3>{record.customerName}</h3>
-                      <button
-                        type="button"
-                        className="btn-control-secondary"
-                        onClick={() => startEdit(record)}
-                      >
-                        Edit
-                      </button>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          type="button"
+                          className="btn-control-secondary"
+                          onClick={() => startEdit(record)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-control-danger"
+                          onClick={() => requestDelete(record.id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <div className="update-backend-view-details">
@@ -553,6 +613,52 @@ export default function UpdateBackendDataPage() {
           </>
         )}
       </div>
+
+      {showDeleteConfirm && deletingId && (
+        <div className="modal-backdrop" onClick={cancelDelete}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Delete Customer Record</h3>
+            <p>
+              Are you sure you want to delete this customer record? This action cannot be undone.
+            </p>
+            {deleteMessage && (
+              <div
+                className={`update-backend-message ${
+                  deleteMessage.includes('✅') ? 'success' : 'error'
+                }`}
+                style={{ marginTop: '12px', marginBottom: '12px' }}
+              >
+                {deleteMessage}
+              </div>
+            )}
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={cancelDelete}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-control-danger"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <>
+                    <div className="spinner-small" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  'Delete'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
