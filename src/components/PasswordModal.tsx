@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAdminAuth } from '../context/AdminAuthContext';
+import { fetchAdminPasswordFromFirestore } from '../services/firestoreService';
 
 interface Props {
   onClose: () => void;
@@ -18,14 +20,11 @@ export default function PasswordModal({
 }: Props) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [expectedPassword, setExpectedPassword] = useState<string | null>(null);
+  const [loadingPassword, setLoadingPassword] = useState(passwordType === 'admin');
+  const { authenticate } = useAdminAuth();
   const navigate = useNavigate();
-  
-  const getExpectedPassword = () => {
-    if (passwordType === 'override') {
-      return import.meta.env.VITE_OVERRIDE_PASSWORD as string;
-    }
-    return import.meta.env.VITE_ADMIN_PASSWORD as string;
-  };
+  const overridePassword = import.meta.env.VITE_OVERRIDE_PASSWORD as string | undefined;
   
   const getTitle = () => {
     if (title) return title;
@@ -42,16 +41,49 @@ export default function PasswordModal({
   const getStorageKey = () => {
     if (localStorageKey) return localStorageKey;
     if (passwordType === 'override') return 'overrideAuthed';
-    return 'adminAuthed';
+    return 'adminAuthedv2';
   };
-  
-  const expected = getExpectedPassword();
 
   useEffect(() => {
-    if (!expected) {
-      console.error(`Missing ${passwordType === 'override' ? 'VITE_OVERRIDE_PASSWORD' : 'VITE_ADMIN_PASSWORD'} environment variable`);
-    }
-  }, [expected, passwordType]);
+    let active = true;
+    const loadPassword = async () => {
+      if (passwordType === 'admin') {
+        setLoadingPassword(true);
+        try {
+          const fetched = await fetchAdminPasswordFromFirestore();
+          if (active) {
+            setExpectedPassword(fetched);
+            setError('');
+          }
+        } catch (err) {
+          if (active) {
+            console.error('Error fetching admin password from Firestore:', err);
+            setExpectedPassword(null);
+            setError('Admin password not configured. Please contact support.');
+          }
+        } finally {
+          if (active) {
+            setLoadingPassword(false);
+          }
+        }
+      } else {
+        if (!overridePassword) {
+          setExpectedPassword(null);
+          setError('Override password not configured. Please set environment variables.');
+        } else {
+          setExpectedPassword(overridePassword);
+          setError('');
+        }
+        setLoadingPassword(false);
+      }
+    };
+
+    loadPassword();
+
+    return () => {
+      active = false;
+    };
+  }, [passwordType, overridePassword]);
 
   useEffect(() => {
     // Blur any active input elements when modal opens
@@ -68,12 +100,19 @@ export default function PasswordModal({
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!expected) {
-      setError('Password not configured. Please set environment variables.');
+    if (loadingPassword) {
       return;
     }
-    if (password === expected) {
-      localStorage.setItem(getStorageKey(), 'true');
+    if (!expectedPassword) {
+      setError('Password not configured. Please contact support.');
+      return;
+    }
+    if (password === expectedPassword) {
+      if (passwordType === 'override') {
+        localStorage.setItem(getStorageKey(), 'true');
+      } else {
+        authenticate();
+      }
       onClose();
       navigate(getRedirectPath());
     } else {
@@ -90,13 +129,21 @@ export default function PasswordModal({
             type="password"
             placeholder="Password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              if (error) {
+                setError('');
+              }
+            }}
             autoFocus
+            disabled={loadingPassword}
           />
           {error && <div className="error-text">{error}</div>}
           <div className="modal-actions">
             <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn primary">Continue</button>
+            <button type="submit" className="btn primary" disabled={loadingPassword}>
+              {loadingPassword ? 'Loading...' : 'Continue'}
+            </button>
           </div>
         </form>
       </div>

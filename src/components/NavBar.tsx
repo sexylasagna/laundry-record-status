@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import PasswordModal from './PasswordModal';
+import { useAdminAuth } from '../context/AdminAuthContext';
 import logoImage from '../assets/Kwiksilver Laundry house Logo.png';
 
 // Helper function to get initial theme from localStorage or system preference
@@ -23,6 +24,7 @@ export default function NavBar() {
   const [showModal, setShowModal] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(getInitialTheme);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { isAuthed } = useAdminAuth();
 
   // Apply theme immediately on mount (before React hydration)
   useEffect(() => {
@@ -55,8 +57,7 @@ export default function NavBar() {
 
   const onAdminClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    const authed = localStorage.getItem('adminAuthed') === 'true';
-    if (authed) {
+    if (isAuthed) {
       navigate('/admin');
     } else {
       setShowModal(true);

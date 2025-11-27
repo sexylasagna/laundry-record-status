@@ -1,6 +1,7 @@
 import {
   collection,
   getDocs,
+  getDoc,
   doc,
   updateDoc,
   deleteDoc,
@@ -326,6 +327,43 @@ export async function deleteClaimedAndPaidRecords(): Promise<number> {
 
 const REMINDER_COLLECTION = 'laundry_reminder_notification';
 const REMINDER_DOC_ID = 'current';
+
+const ADMIN_PASSWORD_COLLECTION = 'laundry_admin_password';
+const ADMIN_PASSWORD_DOC_ID = 'current';
+let cachedAdminPassword: string | null = null;
+
+export async function fetchAdminPasswordFromFirestore(): Promise<string> {
+  if (!db) {
+    throw new Error('Firestore is not initialized. Please configure Firebase environment variables.');
+  }
+
+  if (cachedAdminPassword) {
+    return cachedAdminPassword;
+  }
+
+  // Prefer a deterministic document id if available
+  const adminDocRef = doc(db, ADMIN_PASSWORD_COLLECTION, ADMIN_PASSWORD_DOC_ID);
+  const snapshot = await getDoc(adminDocRef);
+  if (snapshot.exists()) {
+    const data = snapshot.data();
+    if (typeof data.password === 'string' && data.password.trim().length > 0) {
+      cachedAdminPassword = data.password.trim();
+      return cachedAdminPassword;
+    }
+  }
+
+  // Fallback: use the first document in the collection
+  const collectionSnapshot = await getDocs(collection(db, ADMIN_PASSWORD_COLLECTION));
+  for (const docSnapshot of collectionSnapshot.docs) {
+    const value = docSnapshot.data()?.password;
+    if (typeof value === 'string' && value.trim().length > 0) {
+      cachedAdminPassword = value.trim();
+      return cachedAdminPassword;
+    }
+  }
+
+  throw new Error('Admin password not configured in Firestore.');
+}
 
 export async function setReminderNotification(payload: ReminderPayload): Promise<void> {
   if (!db) {

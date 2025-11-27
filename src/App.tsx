@@ -8,10 +8,11 @@ import MyDayPage from './pages/MyDayPage';
 import NavBar from './components/NavBar';
 import Footer from './components/Footer';
 import ScrollToTop from './components/ScrollToTop';
+import { AdminAuthProvider, useAdminAuth } from './context/AdminAuthContext';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
-  const authed = typeof window !== 'undefined' && localStorage.getItem('adminAuthed') === 'true';
-  if (!authed) {
+  const { isAuthed } = useAdminAuth();
+  if (!isAuthed) {
     return <Navigate to="/" replace />;
   }
   return children;
@@ -27,58 +28,60 @@ function RequireOverrideAuth({ children }: { children: JSX.Element }) {
 
 export default function App() {
   return (
-    <div className="app-container">
-      <NavBar />
-      <div className="page-container">
-        <Routes>
-          <Route path="/" element={<SearchPage />} />
-          <Route
-            path="/admin"
-            element={
-              <RequireAuth>
-                <AdminPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/override"
-            element={
-              <RequireOverrideAuth>
-                <OverridePage />
-              </RequireOverrideAuth>
-            }
-          />
-          <Route
-            path="/override/report"
-            element={
-              <RequireOverrideAuth>
-                <OverrideReportPage />
-              </RequireOverrideAuth>
-            }
-          />
-          <Route
-            path="/override/update-backend-data"
-            element={
-              <RequireOverrideAuth>
-                <UpdateBackendDataPage />
-              </RequireOverrideAuth>
-            }
-          />
-          <Route
-            path="/myday"
-            element={
-              <RequireAuth>
-                <MyDayPage />
-              </RequireAuth>
-            }
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
+    <AdminAuthProvider>
+      <div className="app-container">
+        <NavBar />
+        <div className="page-container">
+          <Routes>
+            <Route path="/" element={<SearchPage />} />
+            <Route
+              path="/admin"
+              element={
+                <RequireAuth>
+                  <AdminPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/override"
+              element={
+                <RequireOverrideAuth>
+                  <OverridePage />
+                </RequireOverrideAuth>
+              }
+            />
+            <Route
+              path="/override/report"
+              element={
+                <RequireOverrideAuth>
+                  <OverrideReportPage />
+                </RequireOverrideAuth>
+              }
+            />
+            <Route
+              path="/override/update-backend-data"
+              element={
+                <RequireOverrideAuth>
+                  <UpdateBackendDataPage />
+                </RequireOverrideAuth>
+              }
+            />
+            <Route
+              path="/myday"
+              element={
+                <RequireAuth>
+                  <MyDayPage />
+                </RequireAuth>
+              }
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
         <Footer />
         <ScrollToTop />
       </div>
-    );
-  }
+    </AdminAuthProvider>
+  );
+}
 
 
