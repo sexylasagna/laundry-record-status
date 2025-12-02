@@ -7,6 +7,7 @@ import { fetchReceiptsWithCustomers } from '../services/loyverseService';
 import StatusBadge from '../components/StatusBadge';
 import AdminSearchBar from '../components/AdminSearchBar';
 import PasswordModal from '../components/PasswordModal';
+import { useAdminAuth } from '../context/AdminAuthContext';
 
 function getTodayDate(): string {
   const today = new Date();
@@ -163,6 +164,7 @@ function recordStillQualifies(record: CustomerRecord, type: ReminderType): boole
 
 export default function AdminPage() {
   const navigate = useNavigate();
+  const { user } = useAdminAuth();
   const [rows, setRows] = useState<CustomerRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -190,7 +192,7 @@ export default function AdminPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>('');
   const [editingField, setEditingField] = useState<'name' | 'weight' | null>(null);
-  const [showOverrideModal, setShowOverrideModal] = useState(false);
+  // const [showOverrideModal, setShowOverrideModal] = useState(false); // Commented out - no longer needed since override access is controlled by isAdmin
   const [expandedRows, setExpandedRows] = useState<Set<string>>(() => new Set());
   const [reminderItems, setReminderItems] = useState<ReminderEnrichedItem[]>([]);
   const [showReminderModal, setShowReminderModal] = useState(false);
@@ -201,6 +203,7 @@ export default function AdminPage() {
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [confirmationAction, setConfirmationAction] = useState<'done' | 'claimed' | null>(null);
   const [confirmationId, setConfirmationId] = useState<string | null>(null);
+  const [showNotAuthorizedModal, setShowNotAuthorizedModal] = useState(false);
   const closeReminderModal = useCallback(() => {
     setShowReminderModal(false);
   }, []);
@@ -752,6 +755,23 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+      {showNotAuthorizedModal && (
+        <div className="modal-backdrop" onClick={() => setShowNotAuthorizedModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Not authorized</h3>
+            <p>You're not authorized to access the override controls.</p>
+            <div className="modal-actions">
+              <button
+                className="btn primary"
+                type="button"
+                onClick={() => setShowNotAuthorizedModal(false)}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showAttentionNoteModal && attentionNote && (
         <div
@@ -810,7 +830,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      <h2>Kwiksilver Laundry Record Status</h2>
+      <h2>{user?.name ? `Hi ${user.name}, this is Kwiksilver Laundry Record Status` : 'Kwiksilver Laundry Record Status'}</h2>
       <div className="header-buttons">
         <button 
           className="btn-my-day"
@@ -821,23 +841,23 @@ export default function AdminPage() {
         <button 
           className="btn-override" 
           onClick={() => {
-            const authed = localStorage.getItem('overrideAuthed') === 'true';
-            if (authed) {
+            if (user?.isAdmin) {
               navigate('/override');
             } else {
-              setShowOverrideModal(true);
+              setShowNotAuthorizedModal(true);
             }
           }}
         >
           Override Control
         </button>
       </div>
-      {showOverrideModal && (
+      {/* Commented out - no longer needed since override access is controlled by isAdmin */}
+      {/* {showOverrideModal && (
         <PasswordModal
           onClose={() => setShowOverrideModal(false)}
           passwordType="override"
         />
-      )}
+      )} */}
       {!loading && (
         <>
           <div className="admin-controls">

@@ -2,8 +2,16 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 
 interface AdminAuthContextValue {
   isAuthed: boolean;
-  authenticate: () => void;
+  user: AdminUser | null;
+  authenticate: (user: AdminUser) => void;
   logout: () => void;
+}
+
+export interface AdminUser {
+  id: string;
+  username: string;
+  name: string;
+  isAdmin: boolean;
 }
 
 const AdminAuthContext = createContext<AdminAuthContextValue | undefined>(undefined);
@@ -36,9 +44,9 @@ function readStoredAuth(): boolean {
   return false;
 }
 
-function persistAuthForToday() {
+function persistAuthForToday(user: AdminUser) {
   if (typeof window === 'undefined') return;
-  const payload = JSON.stringify({ authed: true, date: getTodayDate() });
+  const payload = JSON.stringify({ authed: true, date: getTodayDate(), user });
   window.localStorage.setItem(STORAGE_KEY, payload);
 }
 
@@ -49,23 +57,41 @@ function clearStoredAuth() {
 
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [isAuthed, setIsAuthed] = useState<boolean>(() => readStoredAuth());
+  const [user, setUser] = useState<AdminUser | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (!stored) return null;
+    try {
+      const parsed = JSON.parse(stored) as { date?: string; authed?: boolean; user?: AdminUser };
+      if (parsed.authed && parsed.date === getTodayDate() && parsed.user) {
+        return parsed.user;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  });
 
-  const authenticate = useCallback(() => {
+  const authenticate = useCallback((nextUser: AdminUser) => {
+    setUser(nextUser);
     setIsAuthed(true);
   }, []);
 
   const logout = useCallback(() => {
+    setUser(null);
     setIsAuthed(false);
     clearStoredAuth();
   }, []);
 
   useEffect(() => {
     if (isAuthed) {
-      persistAuthForToday();
+      if (user) {
+        persistAuthForToday(user);
+      }
     } else {
       clearStoredAuth();
     }
-  }, [isAuthed]);
+  }, [isAuthed, user]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !isAuthed) return;
@@ -82,7 +108,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   }, [isAuthed]);
 
   return (
-    <AdminAuthContext.Provider value={{ isAuthed, authenticate, logout }}>
+    <AdminAuthContext.Provider value={{ isAuthed, user, authenticate, logout }}>
       {children}
     </AdminAuthContext.Provider>
   );

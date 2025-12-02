@@ -328,41 +328,56 @@ export async function deleteClaimedAndPaidRecords(): Promise<number> {
 const REMINDER_COLLECTION = 'laundry_reminder_notification';
 const REMINDER_DOC_ID = 'current';
 
-const ADMIN_PASSWORD_COLLECTION = 'laundry_admin_password';
-const ADMIN_PASSWORD_DOC_ID = 'current';
-let cachedAdminPassword: string | null = null;
+// Employee auth (laundry_employees)
+export interface LaundryEmployee {
+  id: string;
+  username: string;
+  name: string;
+  isAdmin: boolean;
+}
 
-export async function fetchAdminPasswordFromFirestore(): Promise<string> {
+const EMPLOYEE_COLLECTION = 'laundry_employees';
+
+export async function authenticateEmployee(
+  username: string,
+  password: string
+): Promise<LaundryEmployee> {
   if (!db) {
     throw new Error('Firestore is not initialized. Please configure Firebase environment variables.');
   }
 
-  if (cachedAdminPassword) {
-    return cachedAdminPassword;
+  const trimmedUsername = username.trim().toLowerCase();
+
+  if (!trimmedUsername || !password) {
+    throw new Error('Username and password are required.');
   }
 
-  // Prefer a deterministic document id if available
-  const adminDocRef = doc(db, ADMIN_PASSWORD_COLLECTION, ADMIN_PASSWORD_DOC_ID);
-  const snapshot = await getDoc(adminDocRef);
-  if (snapshot.exists()) {
-    const data = snapshot.data();
-    if (typeof data.password === 'string' && data.password.trim().length > 0) {
-      cachedAdminPassword = data.password.trim();
-      return cachedAdminPassword;
-    }
+  const q = query(
+    collection(db, EMPLOYEE_COLLECTION),
+    where('username', '==', trimmedUsername)
+  );
+
+  const snap = await getDocs(q);
+
+  if (snap.empty) {
+    throw new Error('Invalid username or password.');
   }
 
-  // Fallback: use the first document in the collection
-  const collectionSnapshot = await getDocs(collection(db, ADMIN_PASSWORD_COLLECTION));
-  for (const docSnapshot of collectionSnapshot.docs) {
-    const value = docSnapshot.data()?.password;
-    if (typeof value === 'string' && value.trim().length > 0) {
-      cachedAdminPassword = value.trim();
-      return cachedAdminPassword;
-    }
+  const docSnapshot = snap.docs[0];
+  const data = docSnapshot.data() as any;
+
+  if (typeof data.password !== 'string' || data.password !== password) {
+    throw new Error('Invalid username or password.');
   }
 
-  throw new Error('Admin password not configured in Firestore.');
+  const employee: LaundryEmployee = {
+    id: String(data.id ?? docSnapshot.id),
+    username: String(data.username ?? trimmedUsername),
+    name: String(data.name ?? ''),
+    isAdmin: Boolean(data.isAdmin === true),
+  };
+
+  return employee;
 }
 
 export async function setReminderNotification(payload: ReminderPayload): Promise<void> {

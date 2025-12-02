@@ -19,8 +19,9 @@ function RequireAuth({ children }: { children: JSX.Element }) {
 }
 
 function RequireOverrideAuth({ children }: { children: JSX.Element }) {
-  const authed = typeof window !== 'undefined' && localStorage.getItem('overrideAuthed') === 'true';
-  if (!authed) {
+  const { isAuthed, user } = useAdminAuth();
+  const isOverrideAllowed = isAuthed && user?.isAdmin;
+  if (!isOverrideAllowed) {
     return <Navigate to="/" replace />;
   }
   return children;
