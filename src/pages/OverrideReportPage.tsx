@@ -54,6 +54,7 @@ export default function OverrideReportPage() {
   const [records, setRecords] = useState<CustomerRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string>(() => toLocalYmd(new Date()));
 
   useEffect(() => {
     let active = true;
@@ -85,7 +86,7 @@ export default function OverrideReportPage() {
     };
   }, []);
 
-  const todayYmd = useMemo(() => toLocalYmd(new Date()), []);
+  const selectedDateYmd = useMemo(() => selectedDate, [selectedDate]);
 
   const summary = useMemo<SummaryCounts>(() => {
     let doneToday = 0;
@@ -95,42 +96,53 @@ export default function OverrideReportPage() {
       const doneDate = normalizeDateString(record.dateDone);
       const claimedDate = normalizeDateString(record.datePaid);
 
-      if (doneDate === todayYmd) {
+      if (doneDate === selectedDateYmd) {
         doneToday += 1;
       }
-      if (claimedDate === todayYmd) {
+      if (claimedDate === selectedDateYmd) {
         claimedToday += 1;
       }
     });
 
     return { doneToday, claimedToday };
-  }, [records, todayYmd]);
+  }, [records, selectedDateYmd]);
 
   const doneTodayRecords = useMemo(
     () =>
       records.filter(
-        (record) => normalizeDateString(record.dateDone) === todayYmd
+        (record) => normalizeDateString(record.dateDone) === selectedDateYmd
       ),
-    [records, todayYmd]
+    [records, selectedDateYmd]
   );
 
   const claimedTodayRecords = useMemo(
     () =>
       records.filter(
-        (record) => normalizeDateString(record.datePaid) === todayYmd
+        (record) => normalizeDateString(record.datePaid) === selectedDateYmd
       ),
-    [records, todayYmd]
+    [records, selectedDateYmd]
   );
 
-  const formattedToday = useMemo(() => {
-    const now = new Date();
-    return now.toLocaleDateString(undefined, {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  }, []);
+  const formattedSelectedDate = useMemo(() => {
+    const date = new Date(selectedDate + 'T00:00:00');
+    if (Number.isNaN(date.getTime())) {
+      return selectedDate;
+    }
+    const isToday = selectedDateYmd === toLocalYmd(new Date());
+    return isToday
+      ? date.toLocaleDateString(undefined, {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })
+      : date.toLocaleDateString(undefined, {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        });
+  }, [selectedDate, selectedDateYmd]);
 
   return (
     <div className="report-page">
@@ -143,8 +155,41 @@ export default function OverrideReportPage() {
           ← Back to Override Controls
         </button>
         <h2>Daily Report</h2>
+        <div
+          className="report-date-selector"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            marginTop: '8px',
+            marginBottom: '4px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <label
+            htmlFor="report-date-input"
+            style={{ fontWeight: 500, fontSize: '14px', opacity: 0.9 }}
+          >
+            Select date for report
+          </label>
+          <input
+            id="report-date-input"
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            max={toLocalYmd(new Date())}
+            style={{
+              padding: '8px 12px',
+              fontSize: '15px',
+              border: '1px solid #d0d7de',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              backgroundColor: 'var(--card-bg, #fff)',
+            }}
+          />
+        </div>
         <p className="report-subtitle">
-          Summary for {formattedToday}. Counts reflect records stored in
+          Summary for {formattedSelectedDate}. Counts reflect records stored in
           Firestore.
         </p>
       </div>
@@ -170,17 +215,17 @@ export default function OverrideReportPage() {
         <>
           <div className="report-metrics">
             <div className="report-metric-card">
-              <h3>Marked Done Today</h3>
+              <h3>Marked Done</h3>
               <div className="report-metric-value">{summary.doneToday}</div>
               <p className="report-metric-caption">
-                Total customers moved to Done status today.
+                Total customers moved to Done status on this date.
               </p>
             </div>
             <div className="report-metric-card">
-              <h3>Claimed &amp; Paid Today</h3>
+              <h3>Claimed &amp; Paid</h3>
               <div className="report-metric-value">{summary.claimedToday}</div>
               <p className="report-metric-caption">
-                Total customers marked Claimed &amp; Paid today.
+                Total customers marked Claimed &amp; Paid on this date.
               </p>
             </div>
           </div>
@@ -188,11 +233,11 @@ export default function OverrideReportPage() {
           <div className="report-sections">
             <div className="report-section">
               <div className="report-section-header">
-                <h4>Done Today</h4>
+                <h4>Done on {formattedSelectedDate}</h4>
                 <span>{doneTodayRecords.length} record(s)</span>
               </div>
               {doneTodayRecords.length === 0 ? (
-                <p className="report-empty">No customers were marked done today.</p>
+                <p className="report-empty">No customers were marked done on this date.</p>
               ) : (
                 <ul className="report-list">
                   {doneTodayRecords.map((record) => (
@@ -209,12 +254,12 @@ export default function OverrideReportPage() {
 
             <div className="report-section">
               <div className="report-section-header">
-                <h4>Claimed &amp; Paid Today</h4>
+                <h4>Claimed &amp; Paid on {formattedSelectedDate}</h4>
                 <span>{claimedTodayRecords.length} record(s)</span>
               </div>
               {claimedTodayRecords.length === 0 ? (
                 <p className="report-empty">
-                  No customers were marked claimed &amp; paid today.
+                  No customers were marked claimed &amp; paid on this date.
                 </p>
               ) : (
                 <ul className="report-list">
