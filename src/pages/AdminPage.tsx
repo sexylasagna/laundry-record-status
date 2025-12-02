@@ -415,11 +415,12 @@ export default function AdminPage() {
     const action = confirmationAction;
     setConfirmationId(null);
     setConfirmationAction(null);
+    const userName = user?.name || 'Unknown';
 
     if (action === 'done') {
       const nowTimestamp = getCurrentTimestamp();
       const today = nowTimestamp.split('T')[0];
-      const updated = await updateCustomerStatus(id, 2, undefined, today, undefined, nowTimestamp);
+      const updated = await updateCustomerStatus(id, 2, undefined, today, undefined, nowTimestamp, userName);
       setRows(updated);
     } else if (action === 'claimed') {
       const nowTimestamp = getCurrentTimestamp();
@@ -427,10 +428,10 @@ export default function AdminPage() {
       const recordToUpdate = rows.find((r) => r.id === id);
       const dateDone = extractDateOnly(recordToUpdate?.dateDone) || today;
       const dateDoneTime = recordToUpdate?.dateDoneTime || toIsoTimestamp(recordToUpdate?.dateDone) || nowTimestamp;
-      const updated = await updateCustomerStatus(id, 3, today, dateDone, nowTimestamp, dateDoneTime);
+      const updated = await updateCustomerStatus(id, 3, today, dateDone, nowTimestamp, dateDoneTime, undefined, userName);
       setRows(updated);
     }
-  }, [confirmationId, confirmationAction, rows]);
+  }, [confirmationId, confirmationAction, rows, user]);
 
   const handleCancelAction = useCallback(() => {
     setShowConfirmationModal(false);
@@ -467,9 +468,10 @@ export default function AdminPage() {
   const markDone = useCallback(async (id: string) => {
     const nowTimestamp = getCurrentTimestamp();
     const today = nowTimestamp.split('T')[0];
-    const updated = await updateCustomerStatus(id, 2, undefined, today, undefined, nowTimestamp);
+    const userName = user?.name || 'Unknown';
+    const updated = await updateCustomerStatus(id, 2, undefined, today, undefined, nowTimestamp, userName);
     setRows(updated);
-  }, []);
+  }, [user]);
 
   const markClaimed = useCallback(async (id: string) => {
     const nowTimestamp = getCurrentTimestamp();
@@ -477,9 +479,10 @@ export default function AdminPage() {
     const recordToUpdate = rows.find((r) => r.id === id);
     const dateDone = extractDateOnly(recordToUpdate?.dateDone) || today;
     const dateDoneTime = recordToUpdate?.dateDoneTime || toIsoTimestamp(recordToUpdate?.dateDone) || nowTimestamp;
-    const updated = await updateCustomerStatus(id, 3, today, dateDone, nowTimestamp, dateDoneTime);
+    const userName = user?.name || 'Unknown';
+    const updated = await updateCustomerStatus(id, 3, today, dateDone, nowTimestamp, dateDoneTime, undefined, userName);
     setRows(updated);
-  }, [rows]);
+  }, [rows, user]);
 
   const startEdit = (id: string, field: 'name' | 'weight', currentValue: string | number) => {
     setEditingId(id);
@@ -581,13 +584,16 @@ export default function AdminPage() {
               toIsoTimestamp(matchingRecord.dateDone) ||
               toIsoTimestamp(matchingRecord.dateDropped) ||
               receiptTimestamp;
+            const userName = user?.name || 'Unknown';
             await updateCustomerStatus(
               matchingRecord.id,
               3,
               receiptDate,
               recordDateDone,
               receiptTimestamp,
-              recordDateDoneTime
+              recordDateDoneTime,
+              undefined,
+              userName
             );
             updatedCount++;
             updatedRecords.push({

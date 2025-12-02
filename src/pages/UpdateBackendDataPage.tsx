@@ -564,12 +564,22 @@ export default function UpdateBackendDataPage() {
                     <div>
                       <strong>Date Done Time:</strong> <span>{record.dateDoneTime || '—'}</span>
                     </div>
+                    {record.doneBy && (
+                      <div>
+                        <strong>Done By:</strong> <span>{record.doneBy}</span>
+                      </div>
+                    )}
                     <div>
                       <strong>Date Paid:</strong> <span>{record.datePaid || '—'}</span>
                     </div>
                     <div>
                       <strong>Date Paid Time:</strong> <span>{record.datePaidTime || '—'}</span>
                     </div>
+                    {record.paidBy && (
+                      <div>
+                        <strong>Paid By:</strong> <span>{record.paidBy}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

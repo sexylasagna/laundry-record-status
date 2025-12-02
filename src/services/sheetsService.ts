@@ -149,7 +149,9 @@ export async function updateCustomerStatus(
   datePaid?: string,
   dateDone?: string,
   datePaidTime?: string,
-  dateDoneTime?: string
+  dateDoneTime?: string,
+  doneBy?: string,
+  paidBy?: string
 ): Promise<CustomerRecord[]> {
   // Try Firestore first if configured
   const useFirestore = import.meta.env.VITE_USE_FIRESTORE === 'true' || 
@@ -158,7 +160,7 @@ export async function updateCustomerStatus(
   if (useFirestore) {
     try {
       console.log(`🔄 Updating Firestore document ${id} with status ${status}...`);
-      await updateCustomerStatusInFirestore(id, status, datePaid, dateDone, datePaidTime, dateDoneTime);
+      await updateCustomerStatusInFirestore(id, status, datePaid, dateDone, datePaidTime, dateDoneTime, doneBy, paidBy);
       console.log(`✅ Successfully updated Firestore document ${id}`);
       // Refresh data from Firestore after update
       const records = await fetchCustomersFromFirestore();
@@ -190,12 +192,18 @@ export async function updateCustomerStatus(
           if (dateDoneTime) {
             update.dateDoneTime = dateDoneTime;
           }
+          if (paidBy) {
+            update.paidBy = paidBy;
+          }
         } else if (status === 2) {
           if (dateDone) {
             update.dateDone = dateDone;
           }
           if (dateDoneTime) {
             update.dateDoneTime = dateDoneTime;
+          }
+          if (doneBy) {
+            update.doneBy = doneBy;
           }
         }
         return { ...r, ...update };

@@ -10,6 +10,8 @@ export interface CustomerRecord {
   datePaidTime?: string; // ISO datetime captured when claimed & paid
   dateDone?: string; // ISO date when marked done
   dateDoneTime?: string; // ISO datetime captured when marked done
+  doneBy?: string; // Name of user who marked as done
+  paidBy?: string; // Name of user who marked as paid/claimed
 }
 
 export function getStatusText(status: LaundryStatus): string {

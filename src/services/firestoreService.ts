@@ -39,6 +39,8 @@ function mapFirestoreDoc(docId: string, data: any): CustomerRecord {
   const dateDone: string | undefined = data.date_done || undefined;
   const dateDoneTime: string | undefined = data.date_done_time || undefined;
   const datePaidTime: string | undefined = data.date_paid_time || undefined;
+  const doneBy: string | undefined = data.done_by || undefined;
+  const paidBy: string | undefined = data.paid_by || undefined;
 
   return {
     id: docId,
@@ -50,6 +52,8 @@ function mapFirestoreDoc(docId: string, data: any): CustomerRecord {
     datePaidTime,
     dateDone,
     dateDoneTime,
+    doneBy,
+    paidBy,
   };
 }
 
@@ -87,7 +91,9 @@ export async function updateCustomerStatusInFirestore(
   datePaid?: string,
   dateDone?: string,
   datePaidTime?: string,
-  dateDoneTime?: string
+  dateDoneTime?: string,
+  doneBy?: string,
+  paidBy?: string
 ): Promise<void> {
   if (!db) {
     throw new Error('Firestore is not initialized. Please configure Firebase environment variables.');
@@ -114,6 +120,10 @@ export async function updateCustomerStatusInFirestore(
         updateData.date_done_time = dateDoneTime;
         console.log(`⏱️ Preserving date_done_time: ${dateDoneTime} for document ${docId}`);
       }
+      if (paidBy) {
+        updateData.paid_by = paidBy;
+        console.log(`👤 Setting paid_by: ${paidBy} for document ${docId}`);
+      }
     } else if (status === 2) {
       if (dateDone) {
         updateData.date_done = dateDone;
@@ -122,6 +132,10 @@ export async function updateCustomerStatusInFirestore(
       if (dateDoneTime) {
         updateData.date_done_time = dateDoneTime;
         console.log(`⏱️ Setting date_done_time: ${dateDoneTime} for document ${docId}`);
+      }
+      if (doneBy) {
+        updateData.done_by = doneBy;
+        console.log(`👤 Setting done_by: ${doneBy} for document ${docId}`);
       }
     }
     
@@ -187,6 +201,8 @@ export interface UpdateBackendDataParams {
   datePaid?: string | null;
   datePaidTime?: string | null;
   oldStatus?: LaundryStatus | null;
+  doneBy?: string | null;
+  paidBy?: string | null;
 }
 
 export async function updateBackendDataInFirestore(
@@ -215,14 +231,16 @@ export async function updateBackendDataInFirestore(
     if (datePaidRemovedByStatus) {
       updateData.date_paid = null;
       updateData.date_paid_time = null;
-      console.log(`🔄 Status changed from 3 to 2: removing date_paid and date_paid_time`);
+      updateData.paid_by = null;
+      console.log(`🔄 Status changed from 3 to 2: removing date_paid, date_paid_time, and paid_by`);
     }
 
     // Logic: If status moves from 2 to 1, remove date_done and date_done_time
     if (dateDoneRemovedByStatus) {
       updateData.date_done = null;
       updateData.date_done_time = null;
-      console.log(`🔄 Status changed from 2 to 1: removing date_done and date_done_time`);
+      updateData.done_by = null;
+      console.log(`🔄 Status changed from 2 to 1: removing date_done, date_done_time, and done_by`);
     }
 
     // Handle date_done (only if not removed by status change)
@@ -230,7 +248,10 @@ export async function updateBackendDataInFirestore(
       if (params.dateDone === null || params.dateDone === undefined || params.dateDone === '') {
         updateData.date_done = null;
         updateData.date_done_time = null;
-        console.log(`🗑️ Removing date_done and date_done_time`);
+        if (params.doneBy === null || params.doneBy === undefined || params.doneBy === '') {
+          updateData.done_by = null;
+        }
+        console.log(`🗑️ Removing date_done, date_done_time, and done_by`);
       } else {
         updateData.date_done = params.dateDone;
         if (params.dateDoneTime) {
@@ -239,7 +260,10 @@ export async function updateBackendDataInFirestore(
           // If dateDone is set but dateDoneTime is not provided, set it to midnight of that date
           updateData.date_done_time = new Date(`${params.dateDone}T00:00:00`).toISOString();
         }
-        console.log(`📅 Setting date_done: ${params.dateDone}, date_done_time: ${updateData.date_done_time}`);
+        if (params.doneBy !== null && params.doneBy !== undefined && params.doneBy !== '') {
+          updateData.done_by = params.doneBy;
+        }
+        console.log(`📅 Setting date_done: ${params.dateDone}, date_done_time: ${updateData.date_done_time}, done_by: ${updateData.done_by || 'not set'}`);
       }
     }
 
@@ -248,7 +272,10 @@ export async function updateBackendDataInFirestore(
       if (params.datePaid === null || params.datePaid === undefined || params.datePaid === '') {
         updateData.date_paid = null;
         updateData.date_paid_time = null;
-        console.log(`🗑️ Removing date_paid and date_paid_time`);
+        if (params.paidBy === null || params.paidBy === undefined || params.paidBy === '') {
+          updateData.paid_by = null;
+        }
+        console.log(`🗑️ Removing date_paid, date_paid_time, and paid_by`);
       } else {
         updateData.date_paid = params.datePaid;
         if (params.datePaidTime) {
@@ -257,7 +284,10 @@ export async function updateBackendDataInFirestore(
           // If datePaid is set but datePaidTime is not provided, set it to midnight of that date
           updateData.date_paid_time = new Date(`${params.datePaid}T00:00:00`).toISOString();
         }
-        console.log(`📅 Setting date_paid: ${params.datePaid}, date_paid_time: ${updateData.date_paid_time}`);
+        if (params.paidBy !== null && params.paidBy !== undefined && params.paidBy !== '') {
+          updateData.paid_by = params.paidBy;
+        }
+        console.log(`📅 Setting date_paid: ${params.datePaid}, date_paid_time: ${updateData.date_paid_time}, paid_by: ${updateData.paid_by || 'not set'}`);
       }
     }
 
