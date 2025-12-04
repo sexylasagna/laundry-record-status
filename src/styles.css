@@ -620,6 +620,97 @@ body {
   height: 18px;
   flex-shrink: 0;
 }
+
+.cube-view-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  border: 1px solid #4f46e5;
+  color: #ffffff;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+  white-space: nowrap;
+}
+
+.cube-view-toggle:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+  border-color: #4f46e5;
+  box-shadow: 0 4px 8px rgba(79, 70, 229, 0.3);
+  transform: translateY(-1px);
+}
+
+.cube-view-toggle:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.cube-view-toggle:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.cube-view-grid {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.cube-card {
+  flex: 1 1 120px;
+  max-width: 180px;
+  min-height: 64px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.cube-card.in-progress {
+  background: #fef3c7;
+  border: 1px solid #facc15;
+  color: #854d0e;
+}
+
+.cube-card.done {
+  background: #dbeafe;
+  border: 1px solid #60a5fa;
+  color: #1d4ed8;
+}
+
+.cube-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(15, 23, 42, 0.15);
+}
+
+@media (max-width: 720px) {
+  .cube-view-grid {
+    gap: 8px;
+  }
+
+  .cube-card {
+    flex: 1 1 calc(50% - 8px);
+    max-width: none;
+    min-height: 56px;
+  }
+  .cube-view-toggle {
+    width: 100%;
+    justify-content: center;
+  }
+}
 .spinner-small {
   width: 18px;
   height: 18px;
@@ -918,6 +1009,22 @@ body.modal-open .admin-search input {
   color: #000000;
   box-shadow: 0 6px 12px rgba(147, 197, 253, 0.3), 0 2px 4px rgba(0, 0, 0, 0.15);
   transform: translateY(-2px);
+}
+.modal-actions-stacked {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+@media (max-width: 720px) {
+  .modal-actions-stacked {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .modal-actions-stacked .btn,
+  .modal-actions-stacked .btn.ghost,
+  .modal-actions-stacked .btn.primary {
+    width: 100%;
+    justify-content: center;
+  }
 }
 .error-text { color: #fca5a5; font-size: 13px; margin-top: 8px; }
 

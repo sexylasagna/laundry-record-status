@@ -205,11 +205,21 @@ export default function AdminPage() {
   const [confirmationId, setConfirmationId] = useState<string | null>(null);
   const [showNotAuthorizedModal, setShowNotAuthorizedModal] = useState(false);
   const [syncControl, setSyncControlState] = useState<SyncControlPayload | null>(null);
+  const [showCubeView, setShowCubeView] = useState(false);
+  const [cubeActionCustomerId, setCubeActionCustomerId] = useState<string | null>(null);
+  const [showSyncConfirmModal, setShowSyncConfirmModal] = useState(false);
   // Compute effective sync enabled flag:
   // - If override exists -> follow override.enabled
   // - If no override -> follow env default (VITE_ENABLE_SYNC_BUTTON)
   const envSyncDefaultEnabled = import.meta.env.VITE_ENABLE_SYNC_BUTTON !== 'false';
   const isSyncEnabled = syncControl ? syncControl.enabled : envSyncDefaultEnabled;
+
+  // Customers for cube view: In Progress (status 1) and Done but not yet Claimed (status 2)
+  const cubeViewCustomers = useMemo(
+    () =>
+      rows.filter((r) => r.status === 1 || r.status === 2),
+    [rows]
+  );
   const closeReminderModal = useCallback(() => {
     setShowReminderModal(false);
   }, []);
@@ -431,6 +441,7 @@ export default function AdminPage() {
     const action = confirmationAction;
     setConfirmationId(null);
     setConfirmationAction(null);
+    setCubeActionCustomerId(null);
     const userName = user?.name || 'Unknown';
 
     if (action === 'done') {
@@ -453,6 +464,7 @@ export default function AdminPage() {
     setShowConfirmationModal(false);
     setConfirmationId(null);
     setConfirmationAction(null);
+    setCubeActionCustomerId(null);
   }, []);
 
   const requestMarkDone = useCallback((id: string) => {
@@ -465,6 +477,10 @@ export default function AdminPage() {
     setConfirmationId(id);
     setConfirmationAction('claimed');
     setShowConfirmationModal(true);
+  }, []);
+
+  const openCubeActionModal = useCallback((id: string) => {
+    setCubeActionCustomerId(id);
   }, []);
 
   const requestMarkDoneFromReminder = useCallback((id: string) => {
@@ -851,6 +867,71 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+      {showSyncConfirmModal && (
+        <div className="modal-backdrop" onClick={() => setShowSyncConfirmModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Are you sure?</h3>
+            <p>Are you sure you want to sync with Loyverse receipts?</p>
+            <div className="modal-actions">
+              <button
+                className="btn ghost"
+                onClick={() => setShowSyncConfirmModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn primary"
+                onClick={() => {
+                  setShowSyncConfirmModal(false);
+                  void handleSync();
+                }}
+              >
+                Yes, sync now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {cubeActionCustomerId && (
+        <div className="modal-backdrop" onClick={() => setCubeActionCustomerId(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Update status</h3>
+            <p>Choose what you want to do for this customer.</p>
+            <div className="modal-actions modal-actions-stacked">
+              <button
+                className="btn ghost"
+                onClick={() => setCubeActionCustomerId(null)}
+              >
+                Cancel
+              </button>
+              {rows.find((r) => r.id === cubeActionCustomerId)?.status === 1 && (
+                <button
+                  className="btn"
+                  onClick={() => {
+                    setCubeActionCustomerId(null);
+                    setConfirmationId(cubeActionCustomerId);
+                    setConfirmationAction('done');
+                    setShowConfirmationModal(true);
+                  }}
+                >
+                  Mark as Done
+                </button>
+              )}
+              <button
+                className="btn btn-claimed"
+                onClick={() => {
+                  setCubeActionCustomerId(null);
+                  setConfirmationId(cubeActionCustomerId);
+                  setConfirmationAction('claimed');
+                  setShowConfirmationModal(true);
+                }}
+              >
+                Paid &amp; Claimed
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <h2>{user?.name ? `Hi ${user.name}, this is Kwiksilver Laundry Record Status` : 'Kwiksilver Laundry Record Status'}</h2>
       <div className="header-buttons">
@@ -892,7 +973,7 @@ export default function AdminPage() {
             <AdminSearchBar value={searchQuery} onChange={setSearchQuery} />
             <button 
               className="sync-btn" 
-              onClick={handleSync} 
+              onClick={() => setShowSyncConfirmModal(true)} 
               disabled={syncing || !isSyncEnabled}
               title={
                 !isSyncEnabled
@@ -937,15 +1018,43 @@ export default function AdminPage() {
                 Simple
               </button>
             </div>
+            <button
+              type="button"
+              className={`cube-view-toggle ${showCubeView ? 'active' : ''}`}
+              onClick={() => setShowCubeView((prev) => !prev)}
+              title="Toggle simple cube view for In Progress and Done (not claimed)"
+            >
+              {showCubeView ? 'Hide cubes view' : 'Show cubes view'}
+            </button>
           </div>
           {syncMessage && (
             <div className={`sync-message ${syncMessage.includes('✅') ? 'sync-success' : 'sync-info'}`}>
               {syncMessage}
             </div>
           )}
+          {showCubeView && cubeViewCustomers.length > 0 && (
+            <div className="cube-view-grid">
+              {cubeViewCustomers.map((customer) => (
+                <div
+                  key={customer.id}
+                  className={`cube-card ${
+                    customer.status === 1 ? 'in-progress' : 'done'
+                  }`}
+                  onClick={() => openCubeActionModal(customer.id)}
+                >
+                  {customer.customerName}
+                </div>
+              ))}
+            </div>
+          )}
+          {showCubeView && cubeViewCustomers.length === 0 && (
+            <div style={{ marginTop: 12, fontSize: 13, color: 'var(--muted)' }}>
+              No In Progress or Done (not claimed) customers to display.
+            </div>
+          )}
         </>
       )}
-      {!loading && tableViewMode === 'normal' && (
+      {!loading && !showCubeView && tableViewMode === 'normal' && (
         <div className="table">
           <div className="thead">
             <div>Date Dropped</div>
@@ -1121,7 +1230,7 @@ export default function AdminPage() {
           </div>
         </div>
       )}
-      {!loading && tableViewMode === 'simple' && (
+      {!loading && !showCubeView && tableViewMode === 'simple' && (
         <div className="table table-simple">
           <div className="thead">
             <div>Date Dropped</div>
