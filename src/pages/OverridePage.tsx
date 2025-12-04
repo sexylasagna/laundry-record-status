@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { deleteClaimedAndPaidRecords, setReminderNotification, clearReminderNotification, setAttentionNote } from '../services/firestoreService';
+import { deleteClaimedAndPaidRecords, setReminderNotification, clearReminderNotification, setAttentionNote, triggerForceLogout, clearForceLogout } from '../services/firestoreService';
 import { fetchCustomers } from '../services/sheetsService';
 import { CustomerRecord, ReminderItem } from '../types';
+import { useAdminAuth } from '../context/AdminAuthContext';
 
 function getDaysSince(dateString: string | undefined): number {
   if (!dateString) return 0;
@@ -20,6 +21,7 @@ const ATTENTION_NOTE_STORAGE_KEY = 'kwiksilver:attention_note';
 
 export default function OverridePage() {
   const navigate = useNavigate();
+  const { user } = useAdminAuth();
   const [deleting, setDeleting] = useState(false);
   const [deleteMessage, setDeleteMessage] = useState<string | null>(null);
   const [sendingReminder, setSendingReminder] = useState(false);
@@ -35,6 +37,8 @@ export default function OverridePage() {
   });
   const [sendingAttentionNote, setSendingAttentionNote] = useState(false);
   const [attentionNoteMessage, setAttentionNoteMessage] = useState<string | null>(null);
+  const [forcingLogout, setForcingLogout] = useState(false);
+  const [forceLogoutMessage, setForceLogoutMessage] = useState<string | null>(null);
 
   // Save to localStorage whenever attentionNote changes
   useEffect(() => {
@@ -156,6 +160,28 @@ export default function OverridePage() {
       localStorage.removeItem(ATTENTION_NOTE_STORAGE_KEY);
     } catch (error) {
       console.error('Failed to clear attention note from localStorage:', error);
+    }
+  };
+
+  const handleForceLogout = async () => {
+    const confirmMessage = 'Are you sure you want to force logout ALL users? This will immediately log out everyone who is currently logged in.';
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    setForcingLogout(true);
+    setForceLogoutMessage(null);
+
+    try {
+      const triggeredBy = user?.name || user?.username || 'Admin';
+      await triggerForceLogout(triggeredBy);
+      setForceLogoutMessage('✅ Force logout triggered successfully. All users will be logged out immediately.');
+      setTimeout(() => setForceLogoutMessage(null), 5000);
+    } catch (error) {
+      console.error('Error triggering force logout:', error);
+      setForceLogoutMessage(`❌ Error triggering force logout: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setForcingLogout(false);
     }
   };
 
@@ -404,6 +430,51 @@ export default function OverridePage() {
             {attentionNoteMessage && (
               <div className={`control-message ${attentionNoteMessage.includes('✅') ? 'success' : attentionNoteMessage.includes('❌') ? 'error' : 'info'}`}>
                 {attentionNoteMessage}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="control-card">
+          <div className="control-card-header">
+            <h4 className="control-card-title">Force Logout All Users</h4>
+          </div>
+          <div className="control-card-description">
+            <p>
+              Immediately log out all users who are currently logged in. This is useful when:
+            </p>
+            <ul className="control-list">
+              <li>An employee has been terminated and you need to revoke access immediately.</li>
+              <li>There is a security concern and you need to force re-authentication.</li>
+              <li>You want to ensure all users log in with fresh credentials.</li>
+            </ul>
+            <p className="control-warning">⚠️ This will log out ALL users immediately, including yourself. You will need to log in again.</p>
+          </div>
+          <div className="control-card-actions">
+            <button
+              className="btn-control-warning"
+              onClick={handleForceLogout}
+              disabled={forcingLogout}
+            >
+              {forcingLogout ? (
+                <>
+                  <div className="spinner-small" />
+                  <span>Triggering logout...</span>
+                </>
+              ) : (
+                <>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                  </svg>
+                  <span>Force Logout All Users</span>
+                </>
+              )}
+            </button>
+            {forceLogoutMessage && (
+              <div className={`control-message ${forceLogoutMessage.includes('✅') ? 'success' : forceLogoutMessage.includes('❌') ? 'error' : 'info'}`}>
+                {forceLogoutMessage}
               </div>
             )}
           </div>

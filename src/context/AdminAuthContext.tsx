@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { subscribeToForceLogout } from '../services/firestoreService';
 
 interface AdminAuthContextValue {
   isAuthed: boolean;
@@ -16,7 +17,7 @@ export interface AdminUser {
 
 const AdminAuthContext = createContext<AdminAuthContextValue | undefined>(undefined);
 
-const STORAGE_KEY = 'adminAuthedv2';
+const STORAGE_KEY = 'adminAuthedv3';
 
 function getTodayDate(): string {
   const today = new Date();
@@ -106,6 +107,29 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
       window.clearInterval(interval);
     };
   }, [isAuthed]);
+
+  // Subscribe to force logout from Firestore
+  useEffect(() => {
+    if (typeof window === 'undefined' || !isAuthed) return;
+
+    const unsubscribe = subscribeToForceLogout((payload) => {
+      if (payload && payload.triggered) {
+        console.log('🔒 Force logout triggered by:', payload.triggeredBy);
+        logout();
+        // Clear the force logout flag after triggering
+        // This allows it to be triggered again in the future
+        setTimeout(() => {
+          import('../services/firestoreService').then(({ clearForceLogout }) => {
+            clearForceLogout().catch(console.error);
+          });
+        }, 1000);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [isAuthed, logout]);
 
   return (
     <AdminAuthContext.Provider value={{ isAuthed, user, authenticate, logout }}>

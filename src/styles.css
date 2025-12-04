@@ -1564,6 +1564,7 @@ body.modal-open .admin-search input {
   box-shadow: none;
 }
 
+/* Generic danger button (red) used for destructive actions */
 .btn-control-danger {
   background: linear-gradient(135deg, #fca5a5 0%, #ef4444 100%);
   border: 1px solid #dc2626;
@@ -1582,10 +1583,36 @@ body.modal-open .admin-search input {
   min-height: 44px;
 }
 
+/* Dark yellow variant for Force Logout All Users button */
+.btn-control-warning {
+  background: linear-gradient(135deg, #facc15 0%, #eab308 100%);
+  border: 1px solid #ca8a04;
+  color: #1f2933;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(234, 179, 8, 0.25), 0 1px 2px rgba(0, 0, 0, 0.1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+}
+
 .btn-control-danger:hover:not(:disabled) {
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   border-color: #b91c1c;
   box-shadow: 0 6px 12px rgba(239, 68, 68, 0.3), 0 2px 4px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.btn-control-warning:hover:not(:disabled) {
+  background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
+  border-color: #a16207;
+  box-shadow: 0 6px 12px rgba(234, 179, 8, 0.35), 0 2px 4px rgba(0, 0, 0, 0.15);
   transform: translateY(-2px);
 }
 
@@ -1594,7 +1621,13 @@ body.modal-open .admin-search input {
   box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2), 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
-.btn-control-danger:disabled {
+.btn-control-warning:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(234, 179, 8, 0.25), 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.btn-control-danger:disabled,
+.btn-control-warning:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;

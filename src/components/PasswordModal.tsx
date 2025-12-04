@@ -40,7 +40,7 @@ export default function PasswordModal({
   const getStorageKey = () => {
     if (localStorageKey) return localStorageKey;
     if (passwordType === 'override') return 'overrideAuthed';
-    return 'adminAuthedv2';
+    return 'adminAuthedv3';
   };
 
   useEffect(() => {

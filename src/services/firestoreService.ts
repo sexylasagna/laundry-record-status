@@ -519,3 +519,62 @@ export function subscribeToAttentionNote(
   );
 }
 
+// Force Logout functions
+const FORCE_LOGOUT_COLLECTION = 'laundry_force_logout';
+const FORCE_LOGOUT_DOC_ID = 'current';
+
+export interface ForceLogoutPayload {
+  triggered: boolean;
+  triggeredAt: string;
+  triggeredBy: string;
+}
+
+export async function triggerForceLogout(triggeredBy: string = 'Admin'): Promise<void> {
+  if (!db) {
+    throw new Error('Firestore is not initialized. Please configure Firebase environment variables.');
+  }
+  const docRef = doc(db, FORCE_LOGOUT_COLLECTION, FORCE_LOGOUT_DOC_ID);
+  const payload: ForceLogoutPayload = {
+    triggered: true,
+    triggeredAt: new Date().toISOString(),
+    triggeredBy: triggeredBy.trim(),
+  };
+  await setDoc(docRef, payload);
+  console.log('✅ Force logout triggered in Firestore');
+}
+
+export async function clearForceLogout(): Promise<void> {
+  if (!db) {
+    throw new Error('Firestore is not initialized. Please configure Firebase environment variables.');
+  }
+  const docRef = doc(db, FORCE_LOGOUT_COLLECTION, FORCE_LOGOUT_DOC_ID);
+  await deleteDoc(docRef);
+  console.log('✅ Force logout cleared from Firestore');
+}
+
+export function subscribeToForceLogout(
+  onChange: (payload: ForceLogoutPayload | null) => void
+): () => void {
+  if (!db) {
+    console.warn('Firestore is not initialized; force logout subscription disabled.');
+    onChange(null);
+    return () => {};
+  }
+  const docRef = doc(db, FORCE_LOGOUT_COLLECTION, FORCE_LOGOUT_DOC_ID);
+  return onSnapshot(
+    docRef,
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        onChange(null);
+        return;
+      }
+      const data = snapshot.data() as ForceLogoutPayload;
+      onChange(data);
+    },
+    (error) => {
+      console.error('Error subscribing to force logout:', error);
+      onChange(null);
+    }
+  );
+}
+
