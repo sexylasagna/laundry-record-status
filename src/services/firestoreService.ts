@@ -578,3 +578,62 @@ export function subscribeToForceLogout(
   );
 }
 
+// Sync control (enable/disable sync button on Admin page)
+const SYNC_CONTROL_COLLECTION = 'laundry_sync_control';
+const SYNC_CONTROL_DOC_ID = 'current';
+
+export interface SyncControlPayload {
+  enabled: boolean;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export async function setSyncControl(
+  enabled: boolean,
+  updatedBy: string = 'Admin'
+): Promise<void> {
+  if (!db) {
+    throw new Error('Firestore is not initialized. Please configure Firebase environment variables.');
+  }
+  const docRef = doc(db, SYNC_CONTROL_COLLECTION, SYNC_CONTROL_DOC_ID);
+  const payload: SyncControlPayload = {
+    enabled,
+    updatedAt: new Date().toISOString(),
+    updatedBy: updatedBy.trim(),
+  };
+  await setDoc(docRef, payload);
+  console.log(`✅ Sync control updated in Firestore (enabled=${enabled})`);
+}
+
+export function subscribeToSyncControl(
+  onChange: (payload: SyncControlPayload | null) => void
+): () => void {
+  if (!db) {
+    console.warn('Firestore is not initialized; sync control subscription disabled.');
+    onChange(null);
+    return () => {};
+  }
+  const docRef = doc(db, SYNC_CONTROL_COLLECTION, SYNC_CONTROL_DOC_ID);
+  return onSnapshot(
+    docRef,
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        console.log('📋 Sync control: no document exists, defaulting to enabled');
+        onChange(null);
+        return;
+      }
+      const data = snapshot.data() as SyncControlPayload;
+      console.log('📋 Sync control document:', data);
+      onChange({
+        enabled: data.enabled ?? true, // Default to enabled if not specified
+        updatedAt: data.updatedAt || new Date().toISOString(),
+        updatedBy: data.updatedBy || 'Admin',
+      });
+    },
+    (error) => {
+      console.error('Error subscribing to sync control:', error);
+      onChange(null);
+    }
+  );
+}
+

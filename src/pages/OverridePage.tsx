@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { deleteClaimedAndPaidRecords, setReminderNotification, clearReminderNotification, setAttentionNote, triggerForceLogout, clearForceLogout } from '../services/firestoreService';
+import { deleteClaimedAndPaidRecords, setReminderNotification, clearReminderNotification, setAttentionNote, triggerForceLogout, clearForceLogout, setSyncControl } from '../services/firestoreService';
 import { fetchCustomers } from '../services/sheetsService';
 import { CustomerRecord, ReminderItem } from '../types';
 import { useAdminAuth } from '../context/AdminAuthContext';
@@ -39,6 +39,8 @@ export default function OverridePage() {
   const [attentionNoteMessage, setAttentionNoteMessage] = useState<string | null>(null);
   const [forcingLogout, setForcingLogout] = useState(false);
   const [forceLogoutMessage, setForceLogoutMessage] = useState<string | null>(null);
+  const [syncControlLoading, setSyncControlLoading] = useState(false);
+  const [syncControlMessage, setSyncControlMessage] = useState<string | null>(null);
 
   // Save to localStorage whenever attentionNote changes
   useEffect(() => {
@@ -182,6 +184,40 @@ export default function OverridePage() {
       setForceLogoutMessage(`❌ Error triggering force logout: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setForcingLogout(false);
+    }
+  };
+
+  const handleSetSyncControl = async (enabled: boolean) => {
+    const actionText = enabled ? 'ENABLE' : 'DISABLE';
+    if (!enabled) {
+      const confirmMessage =
+        'Are you sure you want to DISABLE the Sync button on the Admin page? This will prevent syncing with Loyverse until it is enabled again.';
+      if (!window.confirm(confirmMessage)) {
+        return;
+      }
+    }
+
+    setSyncControlLoading(true);
+    setSyncControlMessage(null);
+
+    try {
+      const updatedBy = user?.name || user?.username || 'Admin';
+      await setSyncControl(enabled, updatedBy);
+      setSyncControlMessage(
+        enabled
+          ? '✅ Sync button has been ENABLED on the Admin page.'
+          : '✅ Sync button has been DISABLED on the Admin page.'
+      );
+      setTimeout(() => setSyncControlMessage(null), 5000);
+    } catch (error) {
+      console.error('Error updating sync control:', error);
+      setSyncControlMessage(
+        `❌ Error updating sync control: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    } finally {
+      setSyncControlLoading(false);
     }
   };
 
@@ -475,6 +511,68 @@ export default function OverridePage() {
             {forceLogoutMessage && (
               <div className={`control-message ${forceLogoutMessage.includes('✅') ? 'success' : forceLogoutMessage.includes('❌') ? 'error' : 'info'}`}>
                 {forceLogoutMessage}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="control-card">
+          <div className="control-card-header">
+            <h4 className="control-card-title">Control Sync Button on Admin Page</h4>
+          </div>
+          <div className="control-card-description">
+            <p>
+              Enable or disable the <strong>Sync</strong> button on the Admin page without changing the environment variables.
+            </p>
+            <ul className="control-list">
+              <li>Use <strong>Disable Sync</strong> to temporarily block syncing with Loyverse.</li>
+              <li>Use <strong>Enable Sync</strong> to allow syncing again.</li>
+              <li>If the environment variable disables sync, this override cannot force it on.</li>
+            </ul>
+          </div>
+          <div className="control-card-actions">
+            <button
+              className="btn-control-danger"
+              onClick={() => handleSetSyncControl(false)}
+              disabled={syncControlLoading}
+            >
+              {syncControlLoading ? (
+                <>
+                  <div className="spinner-small" />
+                  <span>Updating...</span>
+                </>
+              ) : (
+                <>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                  <span>Disable Sync</span>
+                </>
+              )}
+            </button>
+            <button
+              className="btn-control-green"
+              onClick={() => handleSetSyncControl(true)}
+              disabled={syncControlLoading}
+            >
+              {syncControlLoading ? (
+                <>
+                  <div className="spinner-small" />
+                  <span>Updating...</span>
+                </>
+              ) : (
+                <>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  <span>Enable Sync</span>
+                </>
+              )}
+            </button>
+            {syncControlMessage && (
+              <div className={`control-message ${syncControlMessage.includes('✅') ? 'success' : syncControlMessage.includes('❌') ? 'error' : 'info'}`}>
+                {syncControlMessage}
               </div>
             )}
           </div>

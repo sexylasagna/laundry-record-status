@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CustomerRecord, ReminderEnrichedItem, ReminderItem, ReminderType } from '../types';
 import { fetchCustomers, updateCustomerStatus, updateCustomerName, updateTotalWeight } from '../services/sheetsService';
-import { subscribeToReminderNotification, clearReminderNotification, subscribeToAttentionNote, clearAttentionNote, AttentionNotePayload } from '../services/firestoreService';
+import { subscribeToReminderNotification, clearReminderNotification, subscribeToAttentionNote, clearAttentionNote, AttentionNotePayload, subscribeToSyncControl, type SyncControlPayload } from '../services/firestoreService';
 import { fetchReceiptsWithCustomers } from '../services/loyverseService';
 import StatusBadge from '../components/StatusBadge';
 import AdminSearchBar from '../components/AdminSearchBar';
@@ -204,6 +204,12 @@ export default function AdminPage() {
   const [confirmationAction, setConfirmationAction] = useState<'done' | 'claimed' | null>(null);
   const [confirmationId, setConfirmationId] = useState<string | null>(null);
   const [showNotAuthorizedModal, setShowNotAuthorizedModal] = useState(false);
+  const [syncControl, setSyncControlState] = useState<SyncControlPayload | null>(null);
+  // Compute effective sync enabled flag:
+  // - If override exists -> follow override.enabled
+  // - If no override -> follow env default (VITE_ENABLE_SYNC_BUTTON)
+  const envSyncDefaultEnabled = import.meta.env.VITE_ENABLE_SYNC_BUTTON !== 'false';
+  const isSyncEnabled = syncControl ? syncControl.enabled : envSyncDefaultEnabled;
   const closeReminderModal = useCallback(() => {
     setShowReminderModal(false);
   }, []);
@@ -279,6 +285,16 @@ export default function AdminPage() {
         setAttentionNote(null);
         setShowAttentionNoteModal(false);
       }
+    });
+    return unsubscribe;
+  }, []);
+
+  // Subscribe to sync control override (enable/disable sync button)
+  useEffect(() => {
+    const unsubscribe = subscribeToSyncControl((payload) => {
+      console.log('🔄 Sync control updated:', payload);
+      console.log('🔄 Sync button should be:', payload === null || payload.enabled === true ? 'ENABLED' : 'DISABLED');
+      setSyncControlState(payload);
     });
     return unsubscribe;
   }, []);
@@ -871,8 +887,12 @@ export default function AdminPage() {
             <button 
               className="sync-btn" 
               onClick={handleSync} 
-              disabled={syncing || import.meta.env.VITE_ENABLE_SYNC_BUTTON === 'false'}
-              title="Sync with Loyverse receipts"
+              disabled={syncing || !isSyncEnabled}
+              title={
+                !isSyncEnabled
+                  ? 'Sync is disabled by admin or env configuration'
+                  : 'Sync with Loyverse receipts'
+              }
             >
               {syncing ? (
                 <div className="spinner-small" />
