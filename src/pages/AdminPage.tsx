@@ -870,7 +870,13 @@ export default function AdminPage() {
             }
           }}
         >
-          Override Control
+          Override
+        </button>
+        <button
+          className="btn-portal"
+          onClick={() => navigate('/portal')}
+        >
+          Portal
         </button>
       </div>
       {/* Commented out - no longer needed since override access is controlled by isAdmin */}

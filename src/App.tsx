@@ -5,6 +5,9 @@ import OverridePage from './pages/OverridePage';
 import OverrideReportPage from './pages/OverrideReportPage';
 import UpdateBackendDataPage from './pages/UpdateBackendDataPage';
 import MyDayPage from './pages/MyDayPage';
+import PortalPage from './pages/PortalPage';
+import QuickNotesPage from './pages/QuickNotesPage';
+import TemporaryPayslipPage from './pages/TemporaryPayslipPage';
 import NavBar from './components/NavBar';
 import Footer from './components/Footer';
 import ScrollToTop from './components/ScrollToTop';
@@ -72,6 +75,30 @@ export default function App() {
               element={
                 <RequireAuth>
                   <MyDayPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/portal"
+              element={
+                <RequireAuth>
+                  <PortalPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/portal/quick-notes"
+              element={
+                <RequireAuth>
+                  <QuickNotesPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/portal/temporary-payslip"
+              element={
+                <RequireAuth>
+                  <TemporaryPayslipPage />
                 </RequireAuth>
               }
             />
