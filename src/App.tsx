@@ -8,6 +8,7 @@ import MyDayPage from './pages/MyDayPage';
 import PortalPage from './pages/PortalPage';
 import QuickNotesPage from './pages/QuickNotesPage';
 import TemporaryPayslipPage from './pages/TemporaryPayslipPage';
+import CalloutBoardPage from './pages/CalloutBoardPage';
 import NavBar from './components/NavBar';
 import Footer from './components/Footer';
 import ScrollToTop from './components/ScrollToTop';
@@ -99,6 +100,14 @@ export default function App() {
               element={
                 <RequireAuth>
                   <TemporaryPayslipPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/portal/callout-board"
+              element={
+                <RequireAuth>
+                  <CalloutBoardPage />
                 </RequireAuth>
               }
             />

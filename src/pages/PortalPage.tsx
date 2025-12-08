@@ -92,6 +92,39 @@ export default function PortalPage() {
             </button>
           </div>
         </div>
+
+        <div className="control-card">
+          <div className="control-card-header">
+            <h4 className="control-card-title">Callout Board</h4>
+          </div>
+          <div className="control-card-description">
+            <p>
+              View the callout board for important announcements, updates, and notices.
+            </p>
+          </div>
+          <div className="control-card-actions">
+            <button
+              className="btn-control-primary"
+              onClick={() => navigate('/portal/callout-board')}
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M4 4h16v14H4z" />
+                <path d="M4 9h16" />
+                <path d="M8 13h4" />
+              </svg>
+              <span>Open callout board</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
