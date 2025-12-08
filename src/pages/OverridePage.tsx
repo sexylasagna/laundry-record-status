@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { deleteClaimedAndPaidRecords, setReminderNotification, clearReminderNotification, setAttentionNote, triggerForceLogout, clearForceLogout, setSyncControl } from '../services/firestoreService';
-import { fetchCustomers } from '../services/sheetsService';
+import { deleteClaimedAndPaidRecords, setReminderNotification, clearReminderNotification, setAttentionNote, triggerForceLogout, clearForceLogout, setSyncControl, subscribeToSyncControl, type SyncControlPayload } from '../services/firestoreService';
+import { fetchCustomers, updateCustomerStatus } from '../services/sheetsService';
+import { fetchReceiptsWithCustomers } from '../services/loyverseService';
 import { CustomerRecord, ReminderItem } from '../types';
 import { useAdminAuth } from '../context/AdminAuthContext';
 
@@ -15,6 +16,46 @@ function getDaysSince(dateString: string | undefined): number {
   const now = new Date();
   const diff = now.getTime() - parsed.getTime();
   return Math.floor(diff / (1000 * 60 * 60 * 24));
+}
+
+function getCurrentTimestamp(): string {
+  return new Date().toISOString();
+}
+
+function toIsoTimestamp(value?: string): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const parsedDirect = new Date(trimmed);
+  if (!Number.isNaN(parsedDirect.getTime())) {
+    return parsedDirect.toISOString();
+  }
+
+  const parsedMidnight = new Date(`${trimmed}T00:00:00`);
+  if (!Number.isNaN(parsedMidnight.getTime())) {
+    return parsedMidnight.toISOString();
+  }
+
+  return undefined;
+}
+
+// Extract date portion (YYYY-MM-DD) from various date string formats
+function extractDateOnly(dateString?: string): string {
+  const trimmed = dateString?.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  if (trimmed.includes('T')) {
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString().split('T')[0];
+    }
+    return trimmed.split('T')[0];
+  }
+
+  return trimmed.split(' ')[0];
 }
 
 const ATTENTION_NOTE_STORAGE_KEY = 'kwiksilver:attention_note';
@@ -41,6 +82,17 @@ export default function OverridePage() {
   const [forceLogoutMessage, setForceLogoutMessage] = useState<string | null>(null);
   const [syncControlLoading, setSyncControlLoading] = useState(false);
   const [syncControlMessage, setSyncControlMessage] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [showSyncConfirmModal, setShowSyncConfirmModal] = useState(false);
+  const [syncControl, setSyncControlState] = useState<SyncControlPayload | null>(null);
+  const [rows, setRows] = useState<CustomerRecord[]>([]);
+  
+  // Compute effective sync enabled flag:
+  // - If override exists -> follow override.enabled
+  // - If no override -> follow env default (VITE_ENABLE_SYNC_BUTTON)
+  const envSyncDefaultEnabled = import.meta.env.VITE_ENABLE_SYNC_BUTTON !== 'false';
+  const isSyncEnabled = syncControl ? syncControl.enabled : envSyncDefaultEnabled;
 
   // Save to localStorage whenever attentionNote changes
   useEffect(() => {
@@ -54,6 +106,22 @@ export default function OverridePage() {
       console.error('Failed to save attention note to localStorage:', error);
     }
   }, [attentionNote]);
+
+  // Load customer records for sync functionality
+  useEffect(() => {
+    fetchCustomers().then((data) => {
+      setRows(data);
+    });
+  }, []);
+
+  // Subscribe to sync control override (enable/disable sync button)
+  useEffect(() => {
+    const unsubscribe = subscribeToSyncControl((payload) => {
+      console.log('🔄 Sync control updated:', payload);
+      setSyncControlState(payload);
+    });
+    return unsubscribe;
+  }, []);
 
   const handleDeleteClaimedAndPaid = async () => {
     // Confirm before deleting
@@ -218,6 +286,105 @@ export default function OverridePage() {
       );
     } finally {
       setSyncControlLoading(false);
+    }
+  };
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncMessage(null);
+    
+    try {
+      console.log('🔄 Starting sync with Loyverse...');
+      
+      // Fetch receipts from Loyverse (last 1 day)
+      const receipts = await fetchReceiptsWithCustomers(1);
+      console.log(`📊 Found ${receipts.length} receipts from Loyverse`);
+      
+      if (receipts.length === 0) {
+        setSyncMessage('No recent receipts found in Loyverse.');
+        setSyncing(false);
+        return;
+      }
+
+      // Get all records with status = 2 (Done)
+      const doneRecords = rows.filter(r => r.status === 2);
+      console.log(`📋 Found ${doneRecords.length} records with status "Done"`);
+
+      let matchedCount = 0;
+      let updatedCount = 0;
+      const updatedRecords: Array<{ id: string; customerName: string; receiptDate: string }> = [];
+
+      // Match receipts with Firestore records
+      for (const receipt of receipts) {
+        // Find matching record: status = 2, matching customer name, and receipt date >= dropped date
+        const matchingRecord = doneRecords.find(r => {
+          const recordDate = extractDateOnly(r.dateDropped);
+          const customerNameMatch = r.customerName.toLowerCase().trim() === receipt.customerName.toLowerCase().trim();
+          
+          // Receipt date should be later than or equal to the record's dropped date
+          const receiptDateObj = new Date(receipt.receiptDate);
+          const recordDateObj = new Date(recordDate);
+          const dateMatch = receiptDateObj >= recordDateObj;
+          
+          return customerNameMatch && dateMatch && r.status === 2;
+        });
+
+        if (matchingRecord) {
+          matchedCount++;
+          // Check if already claimed (shouldn't happen but safety check)
+          if (matchingRecord.status !== 3) {
+            console.log(`✅ Matched: ${matchingRecord.customerName} on ${receipt.receiptDate}`);
+            // Update to status = 3 (Claimed & Paid) with receipt date
+            const receiptDate = extractDateOnly(receipt.receiptDate);
+            const receiptTimestamp = toIsoTimestamp(receipt.receiptDate) || getCurrentTimestamp();
+            const recordDateDone = extractDateOnly(matchingRecord.dateDone) || extractDateOnly(matchingRecord.dateDropped);
+            const recordDateDoneTime =
+              matchingRecord.dateDoneTime ||
+              toIsoTimestamp(matchingRecord.dateDone) ||
+              toIsoTimestamp(matchingRecord.dateDropped) ||
+              receiptTimestamp;
+            const userName = user?.name || user?.username || 'Unknown';
+            await updateCustomerStatus(
+              matchingRecord.id,
+              3,
+              receiptDate,
+              recordDateDone,
+              receiptTimestamp,
+              recordDateDoneTime,
+              undefined,
+              userName
+            );
+            updatedCount++;
+            updatedRecords.push({
+              id: matchingRecord.id,
+              customerName: matchingRecord.customerName,
+              receiptDate: receiptTimestamp,
+            });
+          }
+        }
+      }
+
+      // Refresh data from Firestore
+      const refreshedData = await fetchCustomers();
+      setRows(refreshedData);
+
+      if (matchedCount === 0) {
+        setSyncMessage(`No matches found. Checked ${receipts.length} receipts against ${doneRecords.length} done records.`);
+      } else {
+        setSyncMessage(`✅ Sync complete! Matched ${matchedCount} receipts, updated ${updatedCount} records.`);
+      }
+
+      console.log(`✅ Sync complete: ${updatedCount} records updated`);
+      if (updatedRecords.length > 0) {
+        console.log('📋 Updated records details:', updatedRecords);
+      } else {
+        console.log('ℹ️ No records were updated during this sync.');
+      }
+    } catch (error) {
+      console.error('❌ Sync error:', error);
+      setSyncMessage(`Error syncing: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -518,6 +685,56 @@ export default function OverridePage() {
 
         <div className="control-card">
           <div className="control-card-header">
+            <h4 className="control-card-title">Sync with Loyverse</h4>
+          </div>
+          <div className="control-card-description">
+            <p>
+              Sync with Loyverse receipts to automatically mark "Done" records as "Claimed & Paid" when a matching receipt is found.
+            </p>
+            <ul className="control-list">
+              <li>Fetches receipts from Loyverse (last 1 day).</li>
+              <li>Matches receipts with records that have status "Done" (status = 2).</li>
+              <li>Updates matching records to "Claimed & Paid" (status = 3) with the receipt date.</li>
+              <li>Only matches records where the customer name matches and receipt date is on or after the dropped date.</li>
+            </ul>
+          </div>
+          <div className="control-card-actions">
+            <button
+              className="sync-btn-pink"
+              onClick={() => setShowSyncConfirmModal(true)}
+              disabled={syncing || !isSyncEnabled}
+              title={
+                !isSyncEnabled
+                  ? 'Sync is disabled by admin or env configuration'
+                  : 'Sync with Loyverse receipts'
+              }
+            >
+              {syncing ? (
+                <>
+                  <div className="spinner-small" />
+                  <span>Syncing...</span>
+                </>
+              ) : (
+                <>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <polyline points="1 20 1 14 7 14"></polyline>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                  </svg>
+                  <span>Sync</span>
+                </>
+              )}
+            </button>
+            {syncMessage && (
+              <div className={`control-message ${syncMessage.includes('✅') ? 'success' : syncMessage.includes('❌') ? 'error' : 'info'}`}>
+                {syncMessage}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="control-card">
+          <div className="control-card-header">
             <h4 className="control-card-title">Control Sync Button on Admin Page</h4>
           </div>
           <div className="control-card-description">
@@ -578,6 +795,32 @@ export default function OverridePage() {
           </div>
         </div>
       </div>
+
+      {showSyncConfirmModal && (
+        <div className="modal-backdrop" onClick={() => setShowSyncConfirmModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Are you sure?</h3>
+            <p>Are you sure you want to sync with Loyverse receipts?</p>
+            <div className="modal-actions">
+              <button
+                className="btn ghost"
+                onClick={() => setShowSyncConfirmModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn primary"
+                onClick={() => {
+                  setShowSyncConfirmModal(false);
+                  void handleSync();
+                }}
+              >
+                Yes, sync now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

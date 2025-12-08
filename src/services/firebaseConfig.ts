@@ -1,5 +1,6 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore } from 'firebase/firestore';
+import { getStorage, FirebaseStorage } from 'firebase/storage';
 
 // Firebase configuration from environment variables
 // Get these from Firebase Console -> Project Settings -> General -> Your apps -> Web app config
@@ -21,6 +22,7 @@ const isFirebaseConfigured = !!(
 // Initialize Firebase only if configured
 let app: FirebaseApp | null = null;
 let db: Firestore | null = null;
+let storage: FirebaseStorage | null = null;
 
 if (isFirebaseConfigured) {
   try {
@@ -28,15 +30,17 @@ if (isFirebaseConfigured) {
     if (getApps().length === 0) {
       app = initializeApp(firebaseConfig);
       db = getFirestore(app);
+      storage = getStorage(app);
     } else {
       app = getApps()[0];
       db = getFirestore(app);
+      storage = getStorage(app);
     }
   } catch (error) {
     console.error('Firebase initialization error:', error);
   }
 }
 
-export { db };
+export { db, storage };
 export default app;
 

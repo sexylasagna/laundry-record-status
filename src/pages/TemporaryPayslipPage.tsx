@@ -26,7 +26,7 @@ export default function TemporaryPayslipPage() {
       </div>
 
       <div className="override-controls">
-        <div className="control-card">
+        <div className="control-card control-card-notes">
           <div className="control-card-description">
             <p>
               The content below is loaded from the Kwiksilver Temporary Payslip space in Notion so

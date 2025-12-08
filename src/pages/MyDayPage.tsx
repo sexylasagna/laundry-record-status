@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CustomerRecord } from '../types';
 import { fetchCustomers } from '../services/sheetsService';
 import { saveLineupToFirestore, fetchLineupFromFirestore, LineupItem } from '../services/myDayService';
+import { useAdminAuth } from '../context/AdminAuthContext';
 
 function getTodayDate(): string {
   const today = new Date();
@@ -55,6 +56,7 @@ const EQUIPMENT_BADGES = [
 
 export default function MyDayPage() {
   const navigate = useNavigate();
+  const { user } = useAdminAuth();
   const [customers, setCustomers] = useState<CustomerRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [lineup, setLineup] = useState<LineupItem[]>([]);

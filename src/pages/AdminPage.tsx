@@ -1,8 +1,9 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { createWorker } from 'tesseract.js';
 import { CustomerRecord, ReminderEnrichedItem, ReminderItem, ReminderType } from '../types';
 import { fetchCustomers, updateCustomerStatus, updateCustomerName, updateTotalWeight } from '../services/sheetsService';
-import { subscribeToReminderNotification, clearReminderNotification, subscribeToAttentionNote, clearAttentionNote, AttentionNotePayload, subscribeToSyncControl, type SyncControlPayload } from '../services/firestoreService';
+import { subscribeToReminderNotification, clearReminderNotification, subscribeToAttentionNote, clearAttentionNote, AttentionNotePayload, subscribeToSyncControl, type SyncControlPayload, parseOCRText, addCustomerRecordFromOCR } from '../services/firestoreService';
 import { fetchReceiptsWithCustomers } from '../services/loyverseService';
 import StatusBadge from '../components/StatusBadge';
 import AdminSearchBar from '../components/AdminSearchBar';
@@ -208,6 +209,14 @@ export default function AdminPage() {
   const [showCubeView, setShowCubeView] = useState(false);
   const [cubeActionCustomerId, setCubeActionCustomerId] = useState<string | null>(null);
   const [showSyncConfirmModal, setShowSyncConfirmModal] = useState(false);
+  const [processingOCR, setProcessingOCR] = useState(false);
+  const [ocrMessage, setOcrMessage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showOCRModal, setShowOCRModal] = useState(false);
+  const [ocrExtractedText, setOcrExtractedText] = useState<string>('');
+  const [ocrCustomerName, setOcrCustomerName] = useState<string>('');
+  const [ocrTotalWeight, setOcrTotalWeight] = useState<string>('');
+  const [ocrModalError, setOcrModalError] = useState<string | null>(null);
   // Compute effective sync enabled flag:
   // - If override exists -> follow override.enabled
   // - If no override -> follow env default (VITE_ENABLE_SYNC_BUTTON)
@@ -715,6 +724,133 @@ export default function AdminPage() {
     toggleRowExpanded(recordId);
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setOcrMessage('❌ Please select an image file.');
+      setTimeout(() => setOcrMessage(null), 3000);
+      return;
+    }
+
+    // Validate file size (max 10MB for OCR)
+    if (file.size > 10 * 1024 * 1024) {
+      setOcrMessage('❌ Image size must be less than 10MB.');
+      setTimeout(() => setOcrMessage(null), 3000);
+      return;
+    }
+
+    setProcessingOCR(true);
+    setOcrMessage('Processing image with OCR...');
+
+    try {
+      // Create a worker for OCR
+      const worker = await createWorker('eng');
+      
+      // Perform OCR on the image
+      const { data: { text } } = await worker.recognize(file);
+      
+      // Log extracted text to console
+      console.log('=== OCR Extracted Text ===');
+      console.log(text);
+      console.log('=== End of OCR Text ===');
+      
+      // Store extracted text
+      setOcrExtractedText(text);
+      
+      // Parse OCR text to extract customer data
+      const parsedData = parseOCRText(text);
+      
+      // Set parsed data or empty strings if parsing failed
+      if (parsedData) {
+        setOcrCustomerName(parsedData.customerName);
+        setOcrTotalWeight(parsedData.totalWeightKg.toString());
+        console.log('=== Parsed OCR Data ===');
+        console.log('Customer Name:', parsedData.customerName);
+        console.log('Total Weight (kg):', parsedData.totalWeightKg);
+        console.log('=== End of Parsed Data ===');
+      } else {
+        // If parsing failed, allow manual input
+        setOcrCustomerName('');
+        setOcrTotalWeight('');
+        console.log('⚠️ Could not parse OCR text, allowing manual input');
+      }
+      
+      // Terminate the worker
+      await worker.terminate();
+      
+      // Open the confirmation modal
+      setShowOCRModal(true);
+      setOcrMessage(null);
+    } catch (error) {
+      console.error('Error processing OCR:', error);
+      setOcrMessage(`❌ Failed to process image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setTimeout(() => setOcrMessage(null), 5000);
+    } finally {
+      setProcessingOCR(false);
+    }
+  };
+
+  const handleOCRSubmit = async () => {
+    // Clear previous errors
+    setOcrModalError(null);
+    
+    // Validate inputs
+    if (!ocrCustomerName.trim() || !ocrTotalWeight.trim()) {
+      setOcrModalError('❌ Please fill up all mandatory fields (Customer Name and Total Weight).');
+      return;
+    }
+
+    const weight = parseFloat(ocrTotalWeight);
+    if (isNaN(weight) || weight <= 0) {
+      setOcrModalError('❌ Please enter a valid weight (positive number).');
+      return;
+    }
+
+    try {
+      // Get sender name from logged-in user
+      const senderName = user?.username || user?.name || 'Unknown';
+      
+      // Create parsed data object
+      const parsedData = {
+        customerName: ocrCustomerName.trim(),
+        totalWeightKg: weight,
+        extractedText: ocrExtractedText,
+      };
+      
+      // Add customer record to Firestore
+      await addCustomerRecordFromOCR(parsedData, senderName);
+      
+      setOcrMessage(`✅ Customer record added: ${parsedData.customerName} (${parsedData.totalWeightKg}kg)`);
+      setTimeout(() => setOcrMessage(null), 5000);
+      
+      // Refresh customer list
+      const refreshedData = await fetchCustomers();
+      setRows(refreshedData);
+      
+      // Close modal and reset
+      handleOCRCancel();
+    } catch (error) {
+      console.error('Error adding customer record:', error);
+      setOcrMessage(`❌ Failed to add customer record: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setTimeout(() => setOcrMessage(null), 5000);
+    }
+  };
+
+  const handleOCRCancel = () => {
+    setShowOCRModal(false);
+    setOcrExtractedText('');
+    setOcrCustomerName('');
+    setOcrTotalWeight('');
+    setOcrModalError(null);
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="admin-page">
       {showReminderModal && reminderItems.length > 0 && (
@@ -932,6 +1068,127 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+      {showOCRModal && (
+        <div className="modal-backdrop" onClick={handleOCRCancel}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', width: '90%' }}>
+            <h3>Confirm Customer Information</h3>
+            {(!ocrCustomerName.trim() && !ocrTotalWeight.trim()) && (
+              <div
+                style={{
+                  marginBottom: '20px',
+                  padding: '12px',
+                  background: '#fee2e2',
+                  border: '1px solid #fca5a5',
+                  borderRadius: '8px',
+                  color: '#dc2626',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                }}
+              >
+                ❌ Unable to read the name and total weight from the image. Please supply the information below.
+              </div>
+            )}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, fontSize: '14px' }}>
+                Extracted Text:
+              </label>
+              <div
+                style={{
+                  padding: '12px',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  maxHeight: '150px',
+                  overflowY: 'auto',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  color: 'var(--muted)',
+                }}
+              >
+                {ocrExtractedText || 'No text extracted'}
+              </div>
+            </div>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, fontSize: '14px' }}>
+                Customer Name: *
+              </label>
+              <input
+                type="text"
+                value={ocrCustomerName}
+                onChange={(e) => {
+                  setOcrCustomerName(e.target.value);
+                  if (ocrModalError) setOcrModalError(null);
+                }}
+                placeholder="Enter customer name"
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                }}
+                autoFocus
+              />
+            </div>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, fontSize: '14px' }}>
+                Total Weight (kg): *
+              </label>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                value={ocrTotalWeight}
+                onChange={(e) => {
+                  setOcrTotalWeight(e.target.value);
+                  if (ocrModalError) setOcrModalError(null);
+                }}
+                placeholder="Enter total weight"
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                }}
+              />
+            </div>
+            <div style={{ marginBottom: '20px', padding: '10px', background: 'var(--surface)', borderRadius: '8px' }}>
+              <label style={{ display: 'block', fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
+                Uploaded by:
+              </label>
+              <span style={{ fontSize: '14px', color: 'var(--muted)' }}>
+                {user?.name || user?.username || 'Unknown'}
+              </span>
+            </div>
+            {ocrModalError && (
+              <div
+                style={{
+                  marginBottom: '20px',
+                  padding: '12px',
+                  background: '#fee2e2',
+                  border: '1px solid #fca5a5',
+                  borderRadius: '8px',
+                  color: '#dc2626',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                }}
+              >
+                {ocrModalError}
+              </div>
+            )}
+            <div className="modal-actions">
+              <button className="btn ghost" onClick={handleOCRCancel}>
+                Cancel
+              </button>
+              <button className="btn primary" onClick={handleOCRSubmit}>
+                Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <h2>{user?.name ? `Hi ${user.name}, this is Kwiksilver Laundry Record Status` : 'Kwiksilver Laundry Record Status'}</h2>
       <div className="header-buttons">
@@ -971,7 +1228,66 @@ export default function AdminPage() {
         <>
           <div className="admin-controls">
             <AdminSearchBar value={searchQuery} onChange={setSearchQuery} />
-            <button 
+            <input
+              type="file"
+              accept="image/*"
+              ref={fileInputRef}
+              onChange={handleImageUpload}
+              disabled={processingOCR}
+              style={{ display: 'none' }}
+              id="image-ocr-input"
+            />
+            <label
+              htmlFor="image-ocr-input"
+              className="btn-upload-ocr"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '10px 16px',
+                background: processingOCR
+                  ? 'var(--muted)'
+                  : 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                border: '1px solid #4f46e5',
+                borderRadius: '8px',
+                cursor: processingOCR ? 'not-allowed' : 'pointer',
+                fontSize: '14px',
+                fontWeight: 600,
+                color: '#ffffff',
+                transition: 'all 0.2s ease',
+                whiteSpace: 'nowrap',
+                position: 'relative',
+              }}
+            >
+              {!processingOCR && (
+                <>
+                  <div className="glitter-1" />
+                  <div className="glitter-2" />
+                  <div className="glitter-3" />
+                  <div className="glitter-4" />
+                  <div className="glitter-5" />
+                  <span className="btn-new-badge">New</span>
+                </>
+              )}
+              {processingOCR ? (
+                <>
+                  <div className="spinner-small" />
+                  <span>Processing...</span>
+                </>
+              ) : (
+                <>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                  </svg>
+                  <span>Upload</span>
+                </>
+              )}
+            </label>
+            {/* Commented out - sync button moved to Override Control page */}
+            {/* <button 
               className="sync-btn" 
               onClick={() => setShowSyncConfirmModal(true)} 
               disabled={syncing || !isSyncEnabled}
@@ -991,7 +1307,7 @@ export default function AdminPage() {
                 </svg>
               )}
               <span>{syncing ? 'Syncing...' : 'Sync'}</span>
-            </button>
+            </button> */}
             <button className="mobile-sort-btn" onClick={handleSort} title="Sort by date">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 6h18M7 12h10M11 18h2"></path>
@@ -1030,6 +1346,11 @@ export default function AdminPage() {
           {syncMessage && (
             <div className={`sync-message ${syncMessage.includes('✅') ? 'sync-success' : 'sync-info'}`}>
               {syncMessage}
+            </div>
+          )}
+          {ocrMessage && (
+            <div className={`sync-message ${ocrMessage.includes('✅') ? 'sync-success' : 'sync-info'}`} style={{ marginTop: '8px' }}>
+              {ocrMessage}
             </div>
           )}
           {showCubeView && cubeViewCustomers.length > 0 && (

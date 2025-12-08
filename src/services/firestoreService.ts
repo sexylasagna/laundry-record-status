@@ -9,7 +9,9 @@ import {
   orderBy,
   where,
   setDoc,
+  addDoc,
   onSnapshot,
+  Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebaseConfig';
 import { CustomerRecord, LaundryStatus, ReminderPayload } from '../types';
@@ -576,6 +578,177 @@ export function subscribeToForceLogout(
       onChange(null);
     }
   );
+}
+
+// Parse OCR text to extract customer information
+export interface ParsedOCRData {
+  customerName: string;
+  totalWeightKg: number;
+  extractedText: string;
+}
+
+export function parseOCRText(ocrText: string): ParsedOCRData | null {
+  try {
+    const lines = ocrText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    
+    // Find customer name - usually on 2nd line, may have dash before it or not
+    let customerName = '';
+    let weight = 0;
+    
+    // Look for customer name pattern: "Name - Time" or just "Name"
+    for (let i = 0; i < Math.min(lines.length, 10); i++) {
+      const line = lines[i];
+      
+      // Pattern 1: "Name - Time" (e.g., "Gino - 8:46 AM" or "Mark Pacencia - 3:45 PM")
+      // Also handle cases like "& Mami - 11:22 AM "8" with leading symbols and trailing characters
+      // Match pattern: name (letters/spaces), then dash, then time (allow trailing characters after AM/PM)
+      // Make the regex more flexible to handle trailing characters after AM/PM
+      const nameWithDashMatch = line.match(/([A-Z][a-zA-Z\s]*?)\s*-\s*\d+:\d+\s*(?:AM|PM)/i);
+      if (nameWithDashMatch) {
+        customerName = nameWithDashMatch[1].trim();
+        // Clean up any extra characters that might be before the name (like "&", "<", etc.)
+        customerName = customerName.replace(/^[^A-Za-z]+/, '').trim();
+        // IMPORTANT: Remove any "AM" or "PM" that might be at the end of the name
+        // This handles cases where OCR might have put "AM" before the dash
+        customerName = customerName.replace(/\s+(AM|PM)\s*$/i, '').trim();
+        // Remove any trailing numbers, special characters, quotes, or any non-letter characters
+        customerName = customerName.replace(/[\d\W"']+$/, '').trim();
+        // Remove any leading/trailing quotes
+        customerName = customerName.replace(/^["']+|["']+$/g, '').trim();
+        // Final cleanup: remove any standalone "AM" or "PM" words anywhere in the name
+        customerName = customerName.replace(/\b(AM|PM)\b/gi, '').trim();
+        // Clean up any double spaces
+        customerName = customerName.replace(/\s+/g, ' ').trim();
+        if (customerName.length > 0) {
+          console.log(`✅ Extracted customer name: "${customerName}" from line: "${line}"`);
+          break;
+        }
+      }
+      
+      // Pattern 1a: Try a more lenient match that allows any characters before the name
+      // This handles cases where the line starts with symbols like "& Mami - 11:22 AM"
+      if (!customerName) {
+        const lenientMatch = line.match(/[^A-Z]*([A-Z][a-zA-Z\s]{2,30}?)\s*-\s*\d+:\d+\s*(?:AM|PM)/i);
+        if (lenientMatch) {
+          customerName = lenientMatch[1].trim();
+          customerName = customerName.replace(/^[^A-Za-z]+/, '').trim();
+          customerName = customerName.replace(/\s+(AM|PM)\s*$/i, '').trim();
+          customerName = customerName.replace(/[\d\W"']+$/, '').trim();
+          customerName = customerName.replace(/^["']+|["']+$/g, '').trim();
+          customerName = customerName.replace(/\b(AM|PM)\b/gi, '').trim();
+          customerName = customerName.replace(/\s+/g, ' ').trim();
+          if (customerName.length > 0) {
+            console.log(`✅ Extracted customer name (lenient): "${customerName}" from line: "${line}"`);
+            break;
+          }
+        }
+      }
+      
+      // Pattern 1b: Handle case where "AM"/"PM" might appear before the dash
+      // e.g., "Gino AM - 8:46" (though this shouldn't happen in normal cases)
+      const nameWithAMBeforeDash = line.match(/([A-Z][a-zA-Z\s]+?)\s+(AM|PM)\s*-\s*\d+:\d+/i);
+      if (nameWithAMBeforeDash && !customerName) {
+        customerName = nameWithAMBeforeDash[1].trim();
+        customerName = customerName.replace(/^[^A-Za-z]+/, '').trim();
+        customerName = customerName.replace(/\s+/g, ' ').trim();
+        if (customerName.length > 0) {
+          break;
+        }
+      }
+      
+      // Pattern 2: Just name without dash (e.g., "Shy Aragones")
+      // Look for lines that look like names (capital letter, letters/spaces, not too long, no numbers/symbols)
+      if (i > 0 && i < 5) {
+        // Remove common OCR artifacts and check if it's a valid name
+        const cleanedLine = line.replace(/[^A-Za-z\s]/g, '').trim();
+        // Remove AM/PM if present
+        const cleanedLineNoTime = cleanedLine.replace(/\s+(AM|PM)$/i, '').trim();
+        if (cleanedLineNoTime.length >= 3 && cleanedLineNoTime.length <= 50 && /^[A-Z][a-zA-Z\s]+$/.test(cleanedLineNoTime)) {
+          // Make sure it doesn't contain common non-name words
+          const lowerLine = cleanedLineNoTime.toLowerCase();
+          if (!lowerLine.includes('regular') && !lowerLine.includes('laundry') && 
+              !lowerLine.includes('comforter') && !lowerLine.includes('total') &&
+              !lowerLine.includes('charge') && !lowerLine.includes('save') &&
+              !lowerLine.includes('downy') && !lowerLine.includes('blue')) {
+            customerName = cleanedLineNoTime.trim();
+            break;
+          }
+        }
+      }
+    }
+    
+    // Find weight - look for "Regular Laundry" or "Comforter Laundry" followed by "x" and number
+    // Handle OCR typos like "Regufar" instead of "Regular"
+    for (const line of lines) {
+      // Pattern: "Regular Laundry" or "Regufar Laundry" (OCR typo) or "Comforter Laundry"
+      // Followed by "x" and number like "x 18.800" or "x 17.300"
+      // Match variations: "Regular", "Regufar", "Regufar", "Comforter", etc.
+      const weightMatch = line.match(/(?:Reg(?:ular|ufar)|Comforter)\s+Laundry[^x]*x\s*([\d.]+)/i);
+      if (weightMatch) {
+        weight = parseFloat(weightMatch[1]);
+        if (weight > 0) {
+          break;
+        }
+      }
+    }
+    
+    if (!customerName || weight === 0) {
+      console.warn('Could not parse customer name or weight from OCR text');
+      console.warn('Lines:', lines);
+      return null;
+    }
+    
+    return {
+      customerName: customerName.trim(),
+      totalWeightKg: weight,
+      extractedText: ocrText,
+    };
+  } catch (error) {
+    console.error('Error parsing OCR text:', error);
+    return null;
+  }
+}
+
+// Add customer record from OCR to Firestore
+export async function addCustomerRecordFromOCR(
+  parsedData: ParsedOCRData,
+  senderName: string
+): Promise<string> {
+  if (!db) {
+    throw new Error('Firestore is not initialized. Please configure Firebase environment variables.');
+  }
+  
+  try {
+    // Format date as "2025-11-16 09:24 AM"
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = `${now.getMonth() + 1}`.padStart(2, '0');
+    const day = `${now.getDate()}`.padStart(2, '0');
+    const hours = now.getHours();
+    const minutes = `${now.getMinutes()}`.padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours % 12 || 12;
+    const dateString = `${year}-${month}-${day} ${displayHours}:${minutes} ${ampm}`;
+    
+    const recordData = {
+      customer_name: parsedData.customerName,
+      total_kg: parsedData.totalWeightKg,
+      date: dateString,
+      status: 1, // In Progress
+      timestamp: Timestamp.now(),
+      total_cost: 30, // Default as specified
+      extracted_text: parsedData.extractedText,
+      sender_name: senderName,
+    };
+    
+    const docRef = await addDoc(collection(db, 'laundry_records'), recordData);
+    console.log(`✅ Added customer record from OCR: ${parsedData.customerName} (${parsedData.totalWeightKg}kg) - ID: ${docRef.id}`);
+    
+    return docRef.id;
+  } catch (error) {
+    console.error('❌ Error adding customer record from OCR:', error);
+    throw error;
+  }
 }
 
 // Sync control (enable/disable sync button on Admin page)
