@@ -4,6 +4,7 @@ import AdminPage from './pages/AdminPage';
 import OverridePage from './pages/OverridePage';
 import OverrideReportPage from './pages/OverrideReportPage';
 import UpdateBackendDataPage from './pages/UpdateBackendDataPage';
+import AddEditEmployeePage from './pages/AddEditEmployeePage';
 import MyDayPage from './pages/MyDayPage';
 import PortalPage from './pages/PortalPage';
 import QuickNotesPage from './pages/QuickNotesPage';
@@ -68,6 +69,14 @@ export default function App() {
               element={
                 <RequireOverrideAuth>
                   <UpdateBackendDataPage />
+                </RequireOverrideAuth>
+              }
+            />
+            <Route
+              path="/override/add-edit-employee"
+              element={
+                <RequireOverrideAuth>
+                  <AddEditEmployeePage />
                 </RequireOverrideAuth>
               }
             />

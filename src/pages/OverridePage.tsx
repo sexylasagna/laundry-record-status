@@ -794,6 +794,36 @@ export default function OverridePage() {
             )}
           </div>
         </div>
+
+        <div className="control-card">
+          <div className="control-card-header">
+            <h4 className="control-card-title">Manage Employees</h4>
+          </div>
+          <div className="control-card-description">
+            <p>
+              Add new employees or edit existing employee records. The employee ID will be automatically generated (incremental from the last ID + 1).
+            </p>
+            <ul className="control-list">
+              <li>Add new employees with username, name, admin status, and password.</li>
+              <li>Edit existing employees to update their information.</li>
+              <li>View all employees in a list format.</li>
+            </ul>
+          </div>
+          <div className="control-card-actions">
+            <button
+              className="btn-control-primary"
+              onClick={() => navigate('/override/add-edit-employee')}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <line x1="19" y1="8" x2="19" y2="14"></line>
+                <line x1="22" y1="11" x2="16" y2="11"></line>
+              </svg>
+              <span>Manage Employees</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {showSyncConfirmModal && (

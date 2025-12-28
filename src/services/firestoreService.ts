@@ -412,6 +412,217 @@ export async function authenticateEmployee(
   return employee;
 }
 
+// Get all employees
+export async function getAllEmployees(): Promise<LaundryEmployee[]> {
+  if (!db) {
+    throw new Error('Firestore is not initialized. Please configure Firebase environment variables.');
+  }
+
+  try {
+    const q = query(collection(db, EMPLOYEE_COLLECTION));
+    const snap = await getDocs(q);
+    
+    const employees: LaundryEmployee[] = [];
+    snap.forEach((docSnapshot) => {
+      const data = docSnapshot.data() as any;
+      employees.push({
+        id: String(data.id ?? docSnapshot.id),
+        username: String(data.username ?? ''),
+        name: String(data.name ?? ''),
+        isAdmin: Boolean(data.isAdmin === true),
+      });
+    });
+    
+    return employees;
+  } catch (error) {
+    console.error('Error fetching employees:', error);
+    throw error;
+  }
+}
+
+// Get next employee ID (incremental from last ID + 1)
+export async function getNextEmployeeId(): Promise<string> {
+  if (!db) {
+    throw new Error('Firestore is not initialized. Please configure Firebase environment variables.');
+  }
+
+  try {
+    const employees = await getAllEmployees();
+    
+    if (employees.length === 0) {
+      return '1';
+    }
+    
+    // Find the maximum numeric ID
+    const numericIds = employees
+      .map(emp => {
+        const numId = parseInt(emp.id, 10);
+        return isNaN(numId) ? 0 : numId;
+      })
+      .filter(id => id > 0);
+    
+    if (numericIds.length === 0) {
+      return '1';
+    }
+    
+    const maxId = Math.max(...numericIds);
+    return String(maxId + 1);
+  } catch (error) {
+    console.error('Error getting next employee ID:', error);
+    throw error;
+  }
+}
+
+// Add new employee
+export interface AddEmployeeParams {
+  username: string;
+  name: string;
+  isAdmin: boolean;
+  password: string;
+}
+
+export async function addEmployee(params: AddEmployeeParams): Promise<string> {
+  if (!db) {
+    throw new Error('Firestore is not initialized. Please configure Firebase environment variables.');
+  }
+
+  const trimmedUsername = params.username.trim().toLowerCase();
+  
+  if (!trimmedUsername || !params.name.trim() || !params.password) {
+    throw new Error('Username, name, and password are required.');
+  }
+
+  // Check if username already exists
+  const existingQ = query(
+    collection(db, EMPLOYEE_COLLECTION),
+    where('username', '==', trimmedUsername)
+  );
+  const existingSnap = await getDocs(existingQ);
+  
+  if (!existingSnap.empty) {
+    throw new Error('Username already exists.');
+  }
+
+  // Get next ID
+  const nextId = await getNextEmployeeId();
+
+  // Create employee document
+  const employeeData = {
+    id: nextId,
+    username: trimmedUsername,
+    name: params.name.trim(),
+    isAdmin: Boolean(params.isAdmin),
+    password: params.password, // Store password as plain text (as per existing structure)
+  };
+
+  const docRef = await addDoc(collection(db, EMPLOYEE_COLLECTION), employeeData);
+  console.log(`✅ Added employee: ${params.name} (ID: ${nextId}, Username: ${trimmedUsername})`);
+  
+  return nextId;
+}
+
+// Update employee
+export interface UpdateEmployeeParams {
+  id: string;
+  username?: string;
+  name?: string;
+  isAdmin?: boolean;
+  password?: string;
+}
+
+export async function updateEmployee(params: UpdateEmployeeParams): Promise<void> {
+  if (!db) {
+    throw new Error('Firestore is not initialized. Please configure Firebase environment variables.');
+  }
+
+  if (!params.id) {
+    throw new Error('Employee ID is required.');
+  }
+
+  // Find employee by ID
+  const q = query(
+    collection(db, EMPLOYEE_COLLECTION),
+    where('id', '==', params.id)
+  );
+  const snap = await getDocs(q);
+
+  if (snap.empty) {
+    throw new Error('Employee not found.');
+  }
+
+  const docSnapshot = snap.docs[0];
+  const docRef = doc(db, EMPLOYEE_COLLECTION, docSnapshot.id);
+  const currentData = docSnapshot.data() as any;
+
+  // Build update data
+  const updateData: Record<string, any> = {};
+
+  // If username is being updated, check for duplicates
+  if (params.username !== undefined) {
+    const trimmedUsername = params.username.trim().toLowerCase();
+    if (trimmedUsername !== currentData.username) {
+      // Check if new username already exists
+      const existingQ = query(
+        collection(db, EMPLOYEE_COLLECTION),
+        where('username', '==', trimmedUsername)
+      );
+      const existingSnap = await getDocs(existingQ);
+      
+      if (!existingSnap.empty && existingSnap.docs[0].id !== docSnapshot.id) {
+        throw new Error('Username already exists.');
+      }
+      updateData.username = trimmedUsername;
+    }
+  }
+
+  if (params.name !== undefined) {
+    updateData.name = params.name.trim();
+  }
+
+  if (params.isAdmin !== undefined) {
+    updateData.isAdmin = Boolean(params.isAdmin);
+  }
+
+  if (params.password !== undefined && params.password.trim() !== '') {
+    updateData.password = params.password;
+  }
+
+  await updateDoc(docRef, updateData);
+  console.log(`✅ Updated employee: ID ${params.id}`);
+}
+
+// Get employee by ID
+export async function getEmployeeById(employeeId: string): Promise<LaundryEmployee | null> {
+  if (!db) {
+    throw new Error('Firestore is not initialized. Please configure Firebase environment variables.');
+  }
+
+  try {
+    const q = query(
+      collection(db, EMPLOYEE_COLLECTION),
+      where('id', '==', employeeId)
+    );
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      return null;
+    }
+
+    const docSnapshot = snap.docs[0];
+    const data = docSnapshot.data() as any;
+    
+    return {
+      id: String(data.id ?? docSnapshot.id),
+      username: String(data.username ?? ''),
+      name: String(data.name ?? ''),
+      isAdmin: Boolean(data.isAdmin === true),
+    };
+  } catch (error) {
+    console.error('Error fetching employee by ID:', error);
+    throw error;
+  }
+}
+
 export async function setReminderNotification(payload: ReminderPayload): Promise<void> {
   if (!db) {
     throw new Error('Firestore is not initialized. Please configure Firebase environment variables.');

@@ -2157,6 +2157,293 @@ body.modal-open .admin-search input {
   cursor: not-allowed;
 }
 
+/* Employee form styles */
+.employee-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.employee-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.employee-form label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.employee-form .checkbox-label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.employee-form .checkbox-label input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  margin-right: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.employee-form .checkbox-label span {
+  user-select: none;
+  margin-left: 0;
+}
+
+.employee-form input[type="text"],
+.employee-form input[type="password"] {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.employee-form input[type="text"]:focus,
+.employee-form input[type="password"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
+.employee-form input[type="text"]:disabled,
+.employee-form input[type="password"]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Employee management page styles */
+.employee-management-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 0;
+}
+
+.employee-form-page {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-sizing: border-box;
+}
+
+.employee-form-page .form-group {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.employee-form-page label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.employee-form-page .checkbox-label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.employee-form-page .checkbox-label input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  margin-right: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.employee-form-page .checkbox-label span {
+  user-select: none;
+  margin-left: 0;
+}
+
+.employee-form-page input[type="text"],
+.employee-form-page input[type="password"] {
+  width: 100%;
+  max-width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.employee-form-page input[type="text"]:focus,
+.employee-form-page input[type="password"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
+.employee-form-page input[type="text"]:disabled,
+.employee-form-page input[type="password"]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.form-actions {
+  width: 100%;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 8px;
+  box-sizing: border-box;
+}
+
+.btn-primary,
+.btn-secondary {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #bae6fd 0%, #7dd3fc 100%);
+  border: 1px solid #38bdf8;
+  color: #0c4a6e;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%);
+  border-color: #0ea5e9;
+  box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--background);
+  border-color: var(--accent);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.employees-list {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.employees-list h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.employees-table {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  display: block;
+}
+
+.employees-table table {
+  width: 100%;
+  min-width: 600px;
+  border-collapse: collapse;
+  display: table;
+}
+
+.employees-table th,
+.employees-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.employees-table th {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--background);
+}
+
+.employees-table td {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.employees-table tr:hover {
+  background: var(--background);
+}
+
+.btn-edit {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  background: linear-gradient(135deg, #ddd6fe 0%, #c084fc 100%);
+  border: 1px solid #a855f7;
+  color: #000;
+  transition: all 0.2s ease;
+}
+
+.btn-edit:hover:not(:disabled) {
+  background: linear-gradient(135deg, #c084fc 0%, #a855f7 100%);
+  border-color: #9333ea;
+  box-shadow: 0 2px 8px rgba(168, 85, 247, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-edit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .control-message {
   padding: 12px 16px;
   border-radius: 8px;
@@ -3349,6 +3636,564 @@ body.modal-open .admin-search input {
     min-width: 36px;
     height: 36px;
     padding: 0 8px;
+  }
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 720px) {
+  /* Page container adjustments */
+  .page-container {
+    padding: 16px 12px;
+  }
+
+  /* Override page mobile styles */
+  .override-header h2 {
+    font-size: 22px;
+  }
+
+  .override-description,
+  .override-subdescription {
+    font-size: 14px;
+  }
+
+  .override-controls {
+    gap: 16px;
+  }
+
+  .control-card {
+    padding: 16px;
+    max-width: 100%;
+  }
+
+  .control-card-title {
+    font-size: 16px;
+  }
+
+  .control-card-description p {
+    font-size: 13px;
+  }
+
+  .control-list {
+    font-size: 13px;
+    margin-left: 12px;
+    padding-left: 12px;
+  }
+
+  .control-card-actions {
+    gap: 10px;
+  }
+
+  .btn-control-primary,
+  .btn-control-secondary,
+  .btn-control-danger,
+  .btn-control-warning,
+  .btn-control-green,
+  .btn-control-orange {
+    width: 100%;
+    justify-content: center;
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  .header-buttons {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .header-buttons button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Employee management page mobile styles */
+  .employee-management-container {
+    gap: 20px;
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+  }
+
+  .employee-form-page {
+    width: 100%;
+    padding: 16px;
+    gap: 16px;
+    box-sizing: border-box;
+  }
+
+  .employee-form-page .form-group {
+    width: 100%;
+    gap: 6px;
+    box-sizing: border-box;
+  }
+
+  .employee-form-page label {
+    font-size: 13px;
+    width: 100%;
+  }
+
+  .employee-form-page input[type="text"],
+  .employee-form-page input[type="password"] {
+    width: 100%;
+    max-width: 100%;
+    padding: 10px;
+    font-size: 14px;
+    box-sizing: border-box;
+  }
+
+  .form-actions {
+    width: 100%;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .form-actions button {
+    width: 100%;
+    max-width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    width: 100%;
+    max-width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+
+  /* Employees table mobile styles */
+  .employees-list {
+    width: 100%;
+    padding: 16px;
+    overflow-x: auto;
+    box-sizing: border-box;
+  }
+
+  .employees-list h3 {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+
+  .employees-table {
+    width: 100%;
+    min-width: 100%;
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
+  }
+
+  .employees-table table {
+    width: 100%;
+    min-width: 500px;
+    font-size: 13px;
+    display: table;
+  }
+
+  .employees-table th,
+  .employees-table td {
+    padding: 8px;
+    white-space: nowrap;
+    box-sizing: border-box;
+  }
+
+  .employees-table th {
+    font-size: 12px;
+  }
+
+  .btn-edit {
+    padding: 4px 8px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  /* Employee form in override page (if still exists) */
+  .employee-form {
+    gap: 12px;
+  }
+
+  .employee-form .form-group {
+    gap: 6px;
+  }
+
+  .employee-form label {
+    font-size: 13px;
+  }
+
+  .employee-form input[type="text"],
+  .employee-form input[type="password"] {
+    padding: 10px;
+    font-size: 14px;
+  }
+
+  /* Admin page mobile improvements */
+  .admin-page {
+    padding: 16px 12px;
+  }
+
+  .admin-controls {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .admin-controls > * {
+    width: 100%;
+  }
+
+  .admin-search {
+    max-width: 100%;
+  }
+
+  /* My Day page mobile styles */
+  .my-day-container {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .my-day-customers,
+  .my-day-lineup {
+    width: 100%;
+  }
+
+  .customer-badges,
+  .equipment-badges {
+    gap: 8px;
+  }
+
+  .customer-badge,
+  .equipment-badge {
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+
+  .lineup-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .lineup-slot {
+    min-height: 120px;
+  }
+
+  /* Modal mobile styles */
+  .modal {
+    width: 95%;
+    max-width: 95%;
+    padding: 20px 16px;
+    margin: 20px auto;
+  }
+
+  .modal h3 {
+    font-size: 18px;
+  }
+
+  .modal p {
+    font-size: 14px;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .modal-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Attention note input mobile */
+  .attention-note-input-wrapper {
+    margin-bottom: 10px;
+  }
+
+  .attention-note-input {
+    padding: 10px;
+    font-size: 14px;
+    padding-right: 70px;
+  }
+
+  .attention-note-clear-btn {
+    right: 8px;
+    top: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  /* Override back container */
+  .override-back-container {
+    margin-bottom: 12px;
+  }
+
+  .btn-back {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
+  /* Control message mobile */
+  .control-message {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  /* Spinner small mobile */
+  .spinner-small {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Sync button mobile */
+  .sync-btn-pink {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Table view improvements for mobile */
+  .admin-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Search bar mobile */
+  .admin-search input {
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+
+  /* Status badge mobile */
+  .status-badge {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  /* Button groups mobile */
+  .btn-group {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .btn-group button {
+    width: 100%;
+  }
+
+  /* Touch-friendly improvements */
+  button:not(.lineup-remove):not(.equipment-tag-remove):not(.attention-note-clear-btn),
+  .btn-back,
+  .btn-control-primary,
+  .btn-control-secondary,
+  .btn-control-danger,
+  .btn-control-warning,
+  .btn-control-green,
+  .btn-control-orange,
+  .btn-primary,
+  .btn-secondary,
+  .btn-edit {
+    min-height: 44px; /* iOS recommended touch target size */
+  }
+
+  /* Ensure checkboxes and radios are touch-friendly */
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    min-height: 20px;
+  }
+
+  /* Improve table scrolling on mobile */
+  .admin-table-wrapper {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  /* Portal page mobile */
+  .portal-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .portal-card {
+    padding: 16px;
+  }
+
+  /* My Day header mobile */
+  .my-day-header {
+    margin-bottom: 16px;
+  }
+
+  .my-day-header h2 {
+    font-size: 20px;
+  }
+
+  .my-day-date {
+    font-size: 13px;
+  }
+
+  .btn-my-day-save {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Auto arrange buttons mobile */
+  .btn-auto-arrange,
+  .btn-auto-remove {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Lineup slot mobile */
+  .lineup-customer-name {
+    font-size: 13px;
+  }
+
+  .lineup-number {
+    font-size: 12px;
+  }
+
+  .equipment-tag {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  /* Override page improvements */
+  .override-controls {
+    padding: 0;
+  }
+
+  /* Control warning text mobile */
+  .control-warning {
+    font-size: 12px;
+  }
+}
+
+/* Tablet styles (between mobile and desktop) */
+@media (min-width: 721px) and (max-width: 1024px) {
+  .page-container {
+    padding: 20px 16px;
+  }
+
+  .control-card {
+    max-width: 100%;
+  }
+
+  .employee-management-container {
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+  }
+
+  .employee-form-page {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .employees-list {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .employees-table {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .employees-table table {
+    width: 100%;
+    min-width: 600px;
+  }
+
+  .header-buttons {
+    flex-wrap: wrap;
+  }
+}
+
+/* Desktop styles - adjust width */
+@media (min-width: 1025px) {
+  .employee-management-container {
+    max-width: 1200px;
+    width: 100%;
+    padding: 0 16px;
+  }
+
+  .employee-form-page {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .employees-list {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .employees-table {
+    width: 100%;
+  }
+
+  .employees-table table {
+    width: 100%;
+    min-width: auto;
+  }
+}
+
+/* Very small mobile devices */
+@media (max-width: 480px) {
+  .page-container {
+    padding: 12px 8px;
+  }
+
+  .override-header h2 {
+    font-size: 20px;
+  }
+
+  .control-card {
+    padding: 12px;
+  }
+
+  .control-card-title {
+    font-size: 15px;
+  }
+
+  .employee-management-container {
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+    gap: 16px;
+  }
+
+  .employee-form-page {
+    width: 100%;
+    padding: 12px;
+    box-sizing: border-box;
+  }
+
+  .employee-form-page input[type="text"],
+  .employee-form-page input[type="password"] {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .employees-list {
+    width: 100%;
+    padding: 12px;
+    box-sizing: border-box;
+  }
+
+  .employees-table {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  .employees-table table {
+    min-width: 450px;
+    font-size: 12px;
+    width: 100%;
+  }
+
+  .employees-table th,
+  .employees-table td {
+    padding: 6px;
+    box-sizing: border-box;
   }
 }
 
