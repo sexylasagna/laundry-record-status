@@ -3696,12 +3696,14 @@ body.modal-open .admin-search input {
   }
 
   .header-buttons {
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
     gap: 8px;
   }
 
   .header-buttons button {
-    width: 100%;
+    flex: 1;
+    min-width: 0;
     justify-content: center;
   }
 
@@ -3832,12 +3834,46 @@ body.modal-open .admin-search input {
   }
 
   .admin-controls {
-    flex-direction: column;
-    gap: 10px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
   }
 
-  .admin-controls > * {
+  .admin-search-wrapper {
     width: 100%;
+    flex-basis: 100%;
+    order: 1;
+  }
+
+  .admin-controls label.btn-upload-ocr {
+    order: 2;
+    flex: 1;
+    min-width: 0;
+    width: auto;
+  }
+
+  .admin-controls .mobile-sort-btn {
+    order: 3;
+    margin-top: 0;
+    flex: 1;
+    min-width: 0;
+    width: auto;
+  }
+
+  .admin-controls .cube-view-toggle {
+    width: 100%;
+    flex-basis: 100%;
+    order: 4;
+    justify-content: center;
+  }
+
+  .admin-controls .table-view-toggle.desktop-toggle {
+    width: 100%;
+    flex-basis: 100%;
+    order: 5;
+    min-width: 100%;
+    justify-content: stretch;
   }
 
   .admin-search {
@@ -3892,12 +3928,13 @@ body.modal-open .admin-search input {
   }
 
   .modal-actions {
-    flex-direction: column;
+    flex-direction: row;
     gap: 10px;
   }
 
   .modal-actions button {
-    width: 100%;
+    flex: 1;
+    min-width: 0;
     justify-content: center;
   }
 
